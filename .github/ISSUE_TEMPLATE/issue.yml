@@ -1,0 +1,44 @@
+name: 작업 이슈
+description: 기능 개발, 버그 수정, 리팩터링 등 작업을 등록합니다.
+body:
+  - type: dropdown
+    id: work-type
+    attributes:
+      label: 작업 유형
+      description: 이번 작업의 유형을 선택해 주세요.
+      options:
+        - 기능 개발 (Feat)
+        - 버그 수정 (Fix)
+        - 리팩터링 (Refactor)
+        - 기타 (Chore)
+    validations:
+      required: true
+
+  - type: textarea
+    id: work-content
+    attributes:
+      label: 작업 내용
+      description: 어떤 작업을 진행할지 자유롭게 작성해 주세요.
+      placeholder: 예) 연차 신청 화면에 잔여 연차를 표시한다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: work-details
+    attributes:
+      label: 상세 작업
+      description: 아래 체크리스트에 작업 항목을 추가해 주세요.
+      value: |
+        - [ ] 
+        - [ ] 
+        - [ ] 
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 참고 사항
+      description: 관련 문서, 스크린샷, 참고 링크 등을 작성해 주세요.
+      placeholder: |
+        - 관련 문서:
+        - 스크린샷:
+        - 참고 링크:
