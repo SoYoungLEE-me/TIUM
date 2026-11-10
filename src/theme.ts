@@ -87,7 +87,7 @@ const theme = createTheme({
   },
   shape: { borderRadius: 12 },
   typography: {
-    fontFamily: "Paperozi, Arial, sans-serif",
+    fontFamily: '"SUIT Variable", Arial, sans-serif',
     h1: { fontWeight: 700, fontSize: "24px", letterSpacing: "-0.02em" },
     h2: { fontWeight: 700, fontSize: "1rem" },
     h3: { fontWeight: 700, fontSize: "28px" }, // KPI 숫자
