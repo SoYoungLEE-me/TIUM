@@ -1,5 +1,6 @@
 import { Box, Container } from "@mui/material";
 import { Outlet } from "react-router";
+import Chatbot from "../common/chatbot/Chatbot";
 
 const AppLayout = () => {
   return (
@@ -16,6 +17,7 @@ const AppLayout = () => {
           <Outlet />
         </Container>
       </Box>
+      <Chatbot />
     </Box>
   );
 };
