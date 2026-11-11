@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from "react-router";
+import Chatbot from "../common/chatbot/Chatbot";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 
@@ -45,6 +46,7 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
           <Outlet />
         </Box>
       </Box>
+      <Chatbot />
     </Box>
   );
 };
