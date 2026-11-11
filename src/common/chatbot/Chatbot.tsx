@@ -29,7 +29,7 @@ const findScenario = (input: string): ChatResponseData | null => {
 
   const entries = Object.entries(mock.scenarios);
   const partial = entries.find(
-    ([key]) => trimmed.includes(key) || key.includes(trimmed),
+    ([key]) => trimmed.includes(key) || key.includes(trimmed)
   );
   if (partial) return partial[1].data;
 
@@ -62,7 +62,7 @@ const Chatbot = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submittingMessageId, setSubmittingMessageId] = useState<string | null>(
-    null,
+    null
   );
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,7 +70,7 @@ const Chatbot = () => {
 
   const showQuickActions = useMemo(
     () => messages.length === 0,
-    [messages.length],
+    [messages.length]
   );
 
   const resetConversation = () => {
@@ -166,6 +166,7 @@ const Chatbot = () => {
   };
 
   const handleEditLeave = async (_messageId: string) => {
+    void _messageId; // TODO: 실제 수정 기능 구현 시 제거
     if (loadingRef.current) return;
 
     loadingRef.current = true;
@@ -186,7 +187,7 @@ const Chatbot = () => {
 
   const handleSubmitLeave = async (
     messageId: string,
-    payload: LeavePreview,
+    payload: LeavePreview
   ) => {
     if (!payload.can_submit || !payload.confirmation_token) return;
     if (loadingRef.current) return;
@@ -210,7 +211,7 @@ const Chatbot = () => {
           submitted: true,
           submitResult: result,
         };
-      }),
+      })
     );
 
     const resultMessage: AssistantChatMessage = {
