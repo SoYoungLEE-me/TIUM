@@ -1,21 +1,50 @@
-import { Box, Container } from "@mui/material";
+import { useState } from "react";
+import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from "react-router";
 import Chatbot from "../common/chatbot/Chatbot";
+import Sidebar from "./components/Sidebar";
+import Navbar from "./components/Navbar";
 
-const AppLayout = () => {
+import { ADMIN_MENU, EMPLOYEE_MENU } from "./components/menus";
+
+interface AppLayoutProps {
+  /** 사이드바 메뉴 종류 */
+  variant?: "employee" | "admin";
+}
+
+const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <Box
       sx={{
-        minHeight: "100vh",
         display: "flex",
-        flexDirection: "column",
+        minHeight: "100vh",
         bgcolor: "background.default",
       }}
     >
-      <Box component="main" sx={{ flex: 1, py: 3 }}>
-        <Container maxWidth="xl">
+      <Sidebar
+        menuItems={variant === "admin" ? ADMIN_MENU : EMPLOYEE_MENU}
+        variant={isDesktop ? "permanent" : "temporary"}
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      />
+
+      <Box
+        sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
+      >
+        <Navbar
+          showMenuButton={!isDesktop}
+          onMenuClick={() => setMobileOpen(true)}
+        />
+        <Box
+          component="main"
+          sx={{ flex: 1, px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}
+        >
           <Outlet />
-        </Container>
+        </Box>
       </Box>
       <Chatbot />
     </Box>
