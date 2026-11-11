@@ -1,0 +1,197 @@
+{
+  "ui": {
+    "greeting": "안녕하세요! 무엇을 도와드릴까요?",
+    "quick_actions": [
+      { "label": "잔여 연차 확인", "trigger": "잔여 연차 확인" },
+      { "label": "회사 휴가 규정", "trigger": "회사 휴가 규정" }
+    ],
+    "tooltip": "연차, 편하게 물어보세요",
+    "header_title": "HR 도우미",
+    "header_subtitle": "연차와 회사 규정을 도와드려요",
+    "input_placeholder": "메시지를 입력해 주세요",
+    "input_hint": "확인 후 제출해야 신청이 접수돼요"
+  },
+  "scenarios": {
+    "잔여 연차 확인": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "answer",
+        "message": "잔여 10일 중 검토 대기 1일을 제외하면 9일을 신청할 수 있어요.",
+        "payload": {
+          "balance": {
+            "year": 2026,
+            "total_days": 15,
+            "used_days": 5,
+            "remaining_days": 10,
+            "pending_days": 1,
+            "available_days": 9
+          }
+        }
+      }
+    },
+    "회사 휴가 규정": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "answer",
+        "message": "연차는 근무일 기준으로 차감되고, 반차는 하루 0.5일로 계산돼요. 자동 승인이 켜져 있어도 사전 신청 기간을 못 지키면 HR 검토로 넘어갈 수 있어요.",
+        "payload": {}
+      }
+    },
+    "반차 신청": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "clarification",
+        "message": "오전 반차와 오후 반차 중 어떤 유형인가요?",
+        "payload": {
+          "missing_fields": ["leave_type"],
+          "options": [
+            { "label": "오전 반차", "value": "am_half" },
+            { "label": "오후 반차", "value": "pm_half" }
+          ]
+        }
+      }
+    },
+    "금요일 오전 반차 신청해 줘": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "leave_confirmation",
+        "message": "날짜와 차감 일수를 확인한 뒤 제출해 주세요.",
+        "payload": {
+          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "leave_type_name": "오전 반차",
+          "start_date": "2026-11-13",
+          "end_date": "2026-11-13",
+          "total_days": 0.5,
+          "balance": {
+            "year": 2026,
+            "total_days": 15,
+            "used_days": 5,
+            "remaining_days": 10,
+            "pending_days": 1,
+            "available_days": 9
+          },
+          "can_submit": true,
+          "expected_status": "approved",
+          "review_reasons": [],
+          "confirmation_token": "opaque-server-issued-token",
+          "expires_at": "2026-11-10T03:10:00Z"
+        }
+      }
+    },
+    "오전으로 할게": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "leave_confirmation",
+        "message": "날짜와 차감 일수를 확인한 뒤 제출해 주세요.",
+        "payload": {
+          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "leave_type_name": "오전 반차",
+          "start_date": "2026-11-13",
+          "end_date": "2026-11-13",
+          "total_days": 0.5,
+          "balance": {
+            "year": 2026,
+            "total_days": 15,
+            "used_days": 5,
+            "remaining_days": 10,
+            "pending_days": 1,
+            "available_days": 9
+          },
+          "can_submit": true,
+          "expected_status": "approved",
+          "review_reasons": [],
+          "confirmation_token": "opaque-server-issued-token",
+          "expires_at": "2026-11-10T03:10:00Z"
+        }
+      }
+    },
+    "오전 반차": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "leave_confirmation",
+        "message": "날짜와 차감 일수를 확인한 뒤 제출해 주세요.",
+        "payload": {
+          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "leave_type_name": "오전 반차",
+          "start_date": "2026-11-13",
+          "end_date": "2026-11-13",
+          "total_days": 0.5,
+          "balance": {
+            "year": 2026,
+            "total_days": 15,
+            "used_days": 5,
+            "remaining_days": 10,
+            "pending_days": 1,
+            "available_days": 9
+          },
+          "can_submit": true,
+          "expected_status": "approved",
+          "review_reasons": [],
+          "confirmation_token": "opaque-server-issued-token",
+          "expires_at": "2026-11-10T03:10:00Z"
+        }
+      }
+    },
+    "오후 반차": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "leave_confirmation",
+        "message": "사전 신청 기간을 충족하지 않아 HR 검토가 필요해요. 확인 후 제출해 주세요.",
+        "payload": {
+          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab",
+          "leave_type_name": "오후 반차",
+          "start_date": "2026-11-13",
+          "end_date": "2026-11-13",
+          "total_days": 0.5,
+          "balance": {
+            "year": 2026,
+            "total_days": 15,
+            "used_days": 5,
+            "remaining_days": 10,
+            "pending_days": 1,
+            "available_days": 9
+          },
+          "can_submit": true,
+          "expected_status": "pending",
+          "review_reasons": ["INSUFFICIENT_NOTICE"],
+          "confirmation_token": "opaque-server-issued-token-pending",
+          "expires_at": "2026-11-10T03:10:00Z"
+        }
+      }
+    },
+    "연차 부족": {
+      "data": {
+        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "type": "blocked",
+        "message": "신청 가능한 연차가 부족합니다.",
+        "payload": {
+          "reason_codes": ["INSUFFICIENT_BALANCE"],
+          "available_days": 0.5,
+          "requested_days": 1
+        }
+      }
+    }
+  },
+  "submit": {
+    "approved": {
+      "data": {
+        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "status": "approved",
+        "approval_type": "auto",
+        "total_days": 0.5,
+        "decision_reason": "자동 승인 조건 충족",
+        "message": "오전 반차가 승인되었습니다."
+      }
+    },
+    "pending": {
+      "data": {
+        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "status": "pending",
+        "approval_type": null,
+        "total_days": 0.5,
+        "decision_reason": "최소 사전 신청 기간 미충족",
+        "message": "HR 검토 대기로 접수되었습니다."
+      }
+    }
+  }
+}
