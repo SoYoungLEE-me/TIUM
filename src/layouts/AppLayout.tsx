@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from "react-router";
 import Chatbot from "../common/chatbot/Chatbot";
+import Scroll from "../common/scroll/scroll";
+import adminMock from "../mocks/admin/admin.json";
+import type { AdminLeaveRequest } from "../models/admin/admin";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 
@@ -17,34 +20,51 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const adminMenuItems = useMemo(() => {
+    const pendingCount = (adminMock.requests as AdminLeaveRequest[]).filter(
+      (request) => request.status === "pending"
+    ).length;
+
+    return ADMIN_MENU.map((item) =>
+      item.path === "/admin" ? { ...item, badge: pendingCount } : item
+    );
+  }, []);
+
   return (
     <Box
       sx={{
         display: "flex",
-        minHeight: "100vh",
+        height: "100vh",
+        overflow: "hidden",
         bgcolor: "background.default",
       }}
     >
       <Sidebar
-        menuItems={variant === "admin" ? ADMIN_MENU : EMPLOYEE_MENU}
+        menuItems={variant === "admin" ? adminMenuItems : EMPLOYEE_MENU}
         variant={isDesktop ? "permanent" : "temporary"}
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
 
       <Box
-        sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
       >
         <Navbar
           showMenuButton={!isDesktop}
           onMenuClick={() => setMobileOpen(true)}
         />
-        <Box
+        <Scroll
           component="main"
-          sx={{ flex: 1, px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}
+          sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}
         >
           <Outlet />
-        </Box>
+        </Scroll>
       </Box>
       <Chatbot />
     </Box>

@@ -25,7 +25,7 @@ interface NavbarProps {
 const user = {
   full_name: "이소영",
   email: "minji.kim@company.com",
-  role: "employee" as "employee" | "hr_admin",
+  role: "hr_admin" as "employee" | "hr_admin",
   department: "개발팀" as string | null,
 };
 

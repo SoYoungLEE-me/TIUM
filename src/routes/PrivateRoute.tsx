@@ -7,7 +7,7 @@ interface PrivateRouteProps {
 }
 
 // TODO: Supabase 연결 후 실제 인증 상태로 교체
-const user: { role: Role } | null = { role: "employee" };
+const user: { role: Role } | null = { role: "hr_admin" };
 
 const PrivateRoute = ({ permissionLevel }: PrivateRouteProps) => {
   if (!user) {

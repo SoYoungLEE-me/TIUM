@@ -10,6 +10,29 @@ import {
 import { Link, useLocation } from "react-router";
 import type { MenuItem } from "./menus";
 
+const MenuBadge = ({ count }: { count: number }) => (
+  <Box
+    component="span"
+    sx={{
+      ml: "auto",
+      minWidth: 22,
+      height: 22,
+      px: 0.75,
+      borderRadius: 999,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      bgcolor: "#C2513F",
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontWeight: 700,
+      lineHeight: 1,
+    }}
+  >
+    {count > 99 ? "99+" : count}
+  </Box>
+);
+
 const DRAWER_WIDTH = 240;
 
 interface SidebarProps {
@@ -114,6 +137,9 @@ const Sidebar = ({ menuItems, variant, open, onClose }: SidebarProps) => {
                       },
                     }}
                   />
+                  {item.badge != null && item.badge > 0 ? (
+                    <MenuBadge count={item.badge} />
+                  ) : null}
                 </ListItemButton>
               );
             })}
