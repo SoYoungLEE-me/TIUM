@@ -69,7 +69,7 @@
 
 | 테이블                     | 용도                          |
 | -------------------------- | ----------------------------- |
-| employees                   | 로그인 직원 확인              |
+| employees                  | 로그인 직원 확인              |
 | leave_balances             | 연도별 부여·사용 연차 조회    |
 | leave_types                | 연차·오전 반차·오후 반차 확인 |
 | company_settings           | 근무시간·기본 회사 설정       |
@@ -88,6 +88,10 @@ AI는 SQL을 직접 실행하지 않는다.
 - 잔여 = total_days - used_days
 - 검토 대기 = 해당 연도 pending 신청의 total_days 합계
 - 신청 가능 = 잔여 - 검토 대기
+- pending(검토 대기) 상태에서는 연차를 실제로 차감하지 않는다.
+  used_days·원장(leave_balance_transactions)은 바꾸지 않고,
+  신청 가능 일수(available_days) 계산에서만 제외한다.
+- 승인(approved) 시점에 used_days 증가와 차감 이력을 반영한다.
 
 ## 6. 사용 가능한 도구
 

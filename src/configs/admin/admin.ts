@@ -23,5 +23,4 @@ export const ADMIN_LEAVE_STATUS_TABS: Array<{
 
 export const MOCK_REVIEWER_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-/** 반응형(스택)일 때 상세 패널 앵커 */
 export const ADMIN_REVIEW_DETAIL_ANCHOR_ID = "admin-review-detail";
