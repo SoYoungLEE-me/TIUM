@@ -10,6 +10,8 @@ export interface MenuItem {
   label: string;
   path: string;
   icon: ReactNode;
+  /** 메뉴 우측 알림 숫자 (예: 검토 대기 건수) */
+  badge?: number;
 }
 
 export const EMPLOYEE_MENU: MenuItem[] = [

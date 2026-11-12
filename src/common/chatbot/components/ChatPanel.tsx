@@ -4,7 +4,7 @@ import type {
   ChatMessage,
   LeavePreview,
   QuickAction,
-} from "../types";
+} from "../../../models/chatbot/chatbot";
 import ChatHeader from "./ChatHeader";
 import ChatInput from "./ChatInput";
 import MessageList from "./MessageList";

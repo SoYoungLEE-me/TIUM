@@ -1,5 +1,5 @@
 import { Box, Button, Chip, Typography } from "@mui/material";
-import type { LeavePreview, SubmittedLeave } from "../types";
+import type { LeavePreview, SubmittedLeave } from "../../../models/chatbot/chatbot";
 
 type LeaveConfirmationCardProps = {
   payload: LeavePreview;

@@ -6,7 +6,7 @@ import type {
   ClarificationOption,
   LeavePreview,
   QuickAction,
-} from "../types";
+} from "../../../models/chatbot/chatbot";
 import AssistantMessage from "./AssistantMessage";
 import ChatbotLoading from "./ChatbotLoading";
 import ClarificationOptions from "./ClarificationOptions";
