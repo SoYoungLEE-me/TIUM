@@ -14,7 +14,7 @@ export const DAY_STATUS_STYLE: Record<
 > = {
   present: { label: "정상", bg: "#EEF5EB", border: "#D6E7D0", fg: "#3F6E3A" },
   late: { label: "지각", bg: "#FAF6DD", border: "#EADF9C", fg: "#6B5D10" },
-  leave: { label: "연차", bg: "#E2F2EC", border: "#BFE2D6", fg: "#2F7A65" },
+  leave: { label: "연차", bg: "#84C5B1", border: "#84C5B1", fg: "#1E3B33" },
   leave_pending: {
     label: "검토 중",
     bg: "#F1E8F1",
