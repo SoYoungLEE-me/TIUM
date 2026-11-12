@@ -1,5 +1,5 @@
 import { Box, Button } from "@mui/material";
-import type { ClarificationOption } from "../types";
+import type { ClarificationOption } from "../../../models/chatbot/chatbot";
 
 type ClarificationOptionsProps = {
   options: ClarificationOption[];

@@ -8,7 +8,7 @@ import {
   ADMIN_REVIEW_MAX_WIDTH,
   ADMIN_REVIEW_TITLE,
 } from "../../configs/admin/admin";
-import { useAdminLeaveReview } from "../../hooks/admin/admin";
+import { useAdminLeaveReview } from "../../hooks/admin/useAdmin";
 import { scrollToStackedDetail } from "../../utils/admin/admin";
 import PendingRequestList from "./components/PendingRequestList";
 import RequestReviewActions from "./components/RequestReviewActions";

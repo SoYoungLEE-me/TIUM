@@ -64,7 +64,7 @@ export const formatRequestCode = (index: number) => {
 /** pending 자기 예약량을 제외한 잔여로 승인 가능 여부 판단 */
 export const canApproveExcludingSelfPending = (
   balance: LeaveBalanceSnapshot,
-  requestedDays: number
+  requestedDays: number,
 ) => {
   const availableExcludingSelf =
     balance.remaining_days - (balance.pending_days - requestedDays);
@@ -73,7 +73,7 @@ export const canApproveExcludingSelfPending = (
 
 export const filterAdminLeaveRequests = (
   requests: AdminLeaveRequest[],
-  filter: AdminLeaveFilter
+  filter: AdminLeaveFilter,
 ) => {
   const keyword = filter.search.trim().toLowerCase();
 
@@ -82,7 +82,10 @@ export const filterAdminLeaveRequests = (
       filter.status === "all" ? true : request.status === filter.status;
     if (!statusOk) return false;
 
-    if (filter.department !== "all" && request.department !== filter.department) {
+    if (
+      filter.department !== "all" &&
+      request.department !== filter.department
+    ) {
       return false;
     }
 
@@ -97,19 +100,17 @@ export const filterAdminLeaveRequests = (
 };
 
 export const buildAdminReviewSummary = (
-  requests: AdminLeaveRequest[]
+  requests: AdminLeaveRequest[],
 ): AdminReviewSummary => {
   const pending = requests.filter((r) => r.status === "pending");
   const manualProcessed = requests.filter(
     (r) =>
       (r.status === "approved" || r.status === "rejected") &&
-      r.approval_type === "manual"
+      r.approval_type === "manual",
   );
 
   const pendingReservedDays = Number(
-    pending
-      .reduce((sum, request) => sum + request.total_days, 0)
-      .toFixed(1)
+    pending.reduce((sum, request) => sum + request.total_days, 0).toFixed(1),
   );
 
   return {
@@ -120,7 +121,7 @@ export const buildAdminReviewSummary = (
 };
 
 export const buildAdminStatusCounts = (
-  requests: AdminLeaveRequest[]
+  requests: AdminLeaveRequest[],
 ): AdminStatusCounts => ({
   pending: requests.filter((r) => r.status === "pending").length,
   approved: requests.filter((r) => r.status === "approved").length,

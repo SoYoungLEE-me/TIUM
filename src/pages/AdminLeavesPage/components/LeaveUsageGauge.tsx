@@ -6,7 +6,6 @@ type LeaveUsageGaugeProps = {
   totalDays: number;
 };
 
-/** 신청 가능 일수 + 보라색 진행 바 */
 const LeaveUsageGauge = ({
   availableDays,
   totalDays,

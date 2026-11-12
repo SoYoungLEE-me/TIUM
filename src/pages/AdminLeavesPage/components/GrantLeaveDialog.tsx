@@ -1,6 +1,6 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -57,16 +57,9 @@ const GrantLeaveDialog = ({
   const [days, setDays] = useState("1");
   const [reason, setReason] = useState("");
 
-  useEffect(() => {
-    if (!open) return;
-    setEmployeeId(initialEmployeeId ?? "");
-    setDays("1");
-    setReason("");
-  }, [open, initialEmployeeId]);
-
   const selected = useMemo(
     () => employees.find((row) => row.employee.id === employeeId) ?? null,
-    [employees, employeeId]
+    [employees, employeeId],
   );
 
   const parsedDays = Number(days) || 0;
@@ -200,8 +193,8 @@ const GrantLeaveDialog = ({
               }}
             >
               <Typography variant="body2" sx={{ color: "primary.dark" }}>
-                {year}년 총 부여 {formatLeaveDays(selected.balance.total_days)}일 →{" "}
-                {formatLeaveDays(previewTotal)}일 · 사용 연차는 유지됩니다.
+                {year}년 총 부여 {formatLeaveDays(selected.balance.total_days)}
+                일 → {formatLeaveDays(previewTotal)}일 · 사용 연차는 유지됩니다.
               </Typography>
             </Box>
           ) : null}

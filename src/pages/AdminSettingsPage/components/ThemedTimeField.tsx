@@ -1,5 +1,5 @@
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   Box,
   InputAdornment,
@@ -95,8 +95,8 @@ const ColumnDivider = () => (
 );
 
 const ThemedTimeField = ({ label, value, onChange }: ThemedTimeFieldProps) => {
-  const anchorRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
   const { period, hour12, minute } = parseTimeTo12h(value);
 
   const nearestMinute =
@@ -106,13 +106,13 @@ const ThemedTimeField = ({ label, value, onChange }: ThemedTimeFieldProps) => {
   const commit = (
     nextPeriod: DayPeriod,
     nextHour12: string,
-    nextMinute: string
+    nextMinute: string,
   ) => {
     onChange(buildTimeValueFrom12h(nextPeriod, nextHour12, nextMinute));
   };
 
   return (
-    <Box ref={anchorRef} sx={{ width: "100%" }}>
+    <Box ref={setAnchorEl} sx={{ width: "100%" }}>
       <TextField
         label={label}
         value={formatTimeLabel12h(value)}
@@ -137,7 +137,7 @@ const ThemedTimeField = ({ label, value, onChange }: ThemedTimeFieldProps) => {
 
       <Popover
         open={open}
-        anchorEl={anchorRef.current}
+        anchorEl={anchorEl}
         onClose={() => setOpen(false)}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}

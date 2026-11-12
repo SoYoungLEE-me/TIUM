@@ -5,7 +5,7 @@ import {
   ADMIN_SETTINGS_MAX_WIDTH,
   ADMIN_SETTINGS_TITLE,
 } from "../../configs/admin/setting";
-import { useAdminSettings } from "../../hooks/admin/setting";
+import { useAdminSettings } from "../../hooks/admin/useSetting";
 import ApprovalRulesList from "./components/ApprovalRulesList";
 import CompanySettingsForm from "./components/CompanySettingsForm";
 import LeaveTypesList from "./components/LeaveTypesList";

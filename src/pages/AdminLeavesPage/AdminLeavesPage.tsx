@@ -20,7 +20,7 @@ import {
   ADMIN_LEAVES_TITLE,
   DEFAULT_LEAVE_YEAR,
 } from "../../configs/admin/leaves";
-import { useAdminEmployeeLeaves } from "../../hooks/admin/leaves";
+import { useAdminEmployeeLeaves } from "../../hooks/admin/useLeaves";
 import { scrollToStackedDetail } from "../../utils/admin/admin";
 import EmployeeLeaveDetailPanel from "./components/EmployeeLeaveDetailPanel";
 import EmployeeLeaveTable from "./components/EmployeeLeaveTable";
@@ -187,6 +187,7 @@ const AdminLeavesPage = () => {
       <LeavesInfoSection />
 
       <GrantLeaveDialog
+        key={grantTarget?.employee.id ?? "new"}
         open={grantOpen}
         employees={allRows.filter((row) => row.balance.year === filter.year)}
         initialEmployeeId={grantTarget?.employee.id ?? null}

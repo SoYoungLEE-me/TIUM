@@ -1,5 +1,5 @@
 import { Box, Button } from "@mui/material";
-import type { QuickAction } from "../types";
+import type { QuickAction } from "../../../models/chatbot/chatbot";
 
 type QuickActionsProps = {
   actions: QuickAction[];
