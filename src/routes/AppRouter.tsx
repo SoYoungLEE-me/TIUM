@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import { Route, Routes } from "react-router";
+import LoadingSpinner from "../common/components/Loading/LoadingSpinner";
 const AppLayout = React.lazy(() => import("../layouts/AppLayout"));
 const PrivateRoute = React.lazy(() => import("./PrivateRoute"));
 const PublicRoute = React.lazy(() => import("./PublicRouter"));
@@ -23,10 +24,13 @@ const AdminLeavesPage = React.lazy(
 const AdminSettingsPage = React.lazy(
   () => import("../pages/AdminSettingsPage/AdminSettingsPage")
 );
+const NotFoundPage = React.lazy(
+  () => import("../pages/NotFoundPage/NotFoundPage")
+);
 
 const AppRouter = () => {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<LoadingSpinner fullScreen />}>
       <Routes>
         {/* 로그인 전 — 사이드바 없음 */}
         <Route element={<PublicRoute />}>
@@ -55,6 +59,7 @@ const AppRouter = () => {
             <Route path="settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );
