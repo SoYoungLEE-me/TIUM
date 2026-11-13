@@ -25,7 +25,8 @@ export const LEAVES_CONCEPT_CARDS = [
   {
     id: "pending",
     title: "검토 대기 연차",
-    description: "HR 검토 중인 신청 일수의 합계입니다. 아직 실제 차감은 없습니다.",
+    description:
+      "HR 검토 중인 신청 일수의 합계입니다. 아직 실제 차감은 없습니다.",
   },
   {
     id: "available",
@@ -33,7 +34,7 @@ export const LEAVES_CONCEPT_CARDS = [
     description:
       "잔여 − 검토 대기로 계산됩니다. 새 신청 시 실제로 쓸 수 있는 일수입니다.",
   },
-] as const;
+];
 
 export const LEAVE_HISTORY_EMPTY =
   "기존 예시 잔액만 등록되어 있습니다. 부여·조정 이력이 쌓이면 여기에 표시됩니다.";
@@ -41,8 +42,7 @@ export const LEAVE_HISTORY_EMPTY =
 export const GRANT_DIALOG_TITLE = "직원 연차 부여";
 export const GRANT_DIALOG_DESCRIPTION =
   "부여한 일수는 기존 총 연차에 더해집니다.";
-export const GRANT_REASON_PLACEHOLDER =
-  "예: 초기 연차 부여, 특별 연차 부여";
+export const GRANT_REASON_PLACEHOLDER = "예: 초기 연차 부여, 특별 연차 부여";
 
 export const LEAVES_PAGE_SIZE = 8;
 

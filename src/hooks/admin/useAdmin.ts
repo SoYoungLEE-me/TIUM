@@ -31,28 +31,22 @@ export const useAdminLeaveReview = () => {
     department: "all",
   });
   const [selectedId, setSelectedId] = useState<string | null>(
-    () => initialRequests.find((r) => r.status === "pending")?.id ?? null
+    () => initialRequests.find((r) => r.status === "pending")?.id ?? null,
   );
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  const summary = useMemo(
-    () => buildAdminReviewSummary(requests),
-    [requests]
-  );
+  const summary = useMemo(() => buildAdminReviewSummary(requests), [requests]);
   const statusCounts = useMemo(
     () => buildAdminStatusCounts(requests),
-    [requests]
+    [requests],
   );
-  const departments = useMemo(
-    () => getDepartmentOptions(requests),
-    [requests]
-  );
+  const departments = useMemo(() => getDepartmentOptions(requests), [requests]);
 
   const filteredRequests = useMemo(
     () => filterAdminLeaveRequests(requests, filter),
-    [requests, filter]
+    [requests, filter],
   );
 
   const selectedRequest =
@@ -83,12 +77,12 @@ export const useAdminLeaveReview = () => {
   const syncEmployeeBalances = (
     list: AdminLeaveRequest[],
     employeeId: string,
-    nextBalance: AdminLeaveRequest["balance"]
+    nextBalance: AdminLeaveRequest["balance"],
   ) =>
     list.map((request) =>
       request.employee_id === employeeId
         ? { ...request, balance: nextBalance }
-        : request
+        : request,
     );
 
   const approveRequest = async (reason: string) => {
@@ -100,7 +94,7 @@ export const useAdminLeaveReview = () => {
     if (
       !canApproveExcludingSelfPending(
         selectedRequest.balance,
-        selectedRequest.total_days
+        selectedRequest.total_days,
       )
     ) {
       setActionError("잔여 연차가 부족하여 승인할 수 없습니다.");
@@ -110,28 +104,30 @@ export const useAdminLeaveReview = () => {
 
     const nextBalance = applyApproveDeduction(
       selectedRequest.balance,
-      selectedRequest.total_days
+      selectedRequest.total_days,
     );
     const reviewedAt = new Date().toISOString();
 
     setRequests((prev) => {
-      const updated = prev.map((request) =>
-        request.id === selectedRequest.id
-          ? {
-              ...request,
-              status: "approved" as const,
-              approval_type: "manual" as const,
-              decision_reason: reason.trim() || "HR 수동 승인",
-              reviewed_by: MOCK_REVIEWER_ID,
-              reviewed_at: reviewedAt,
-              balance: nextBalance,
-            }
-          : request
+      const updated = prev.map(
+        (request): AdminLeaveRequest =>
+          request.id === selectedRequest.id
+            ? {
+                ...request,
+                status: "approved",
+                approval_type: "manual",
+                decision_reason: reason.trim() || "HR 수동 승인",
+                reviewed_by: MOCK_REVIEWER_ID,
+                reviewed_at: reviewedAt,
+                balance: nextBalance,
+              }
+            : request,
       );
+
       return syncEmployeeBalances(
         updated,
         selectedRequest.employee_id,
-        nextBalance
+        nextBalance,
       );
     });
 
@@ -153,28 +149,29 @@ export const useAdminLeaveReview = () => {
 
     const nextBalance = applyRejectRelease(
       selectedRequest.balance,
-      selectedRequest.total_days
+      selectedRequest.total_days,
     );
     const reviewedAt = new Date().toISOString();
 
     setRequests((prev) => {
-      const updated = prev.map((request) =>
-        request.id === selectedRequest.id
-          ? {
-              ...request,
-              status: "rejected" as const,
-              approval_type: "manual" as const,
-              decision_reason: trimmed,
-              reviewed_by: MOCK_REVIEWER_ID,
-              reviewed_at: reviewedAt,
-              balance: nextBalance,
-            }
-          : request
+      const updated = prev.map(
+        (request): AdminLeaveRequest =>
+          request.id === selectedRequest.id
+            ? {
+                ...request,
+                status: "rejected",
+                approval_type: "manual",
+                decision_reason: trimmed,
+                reviewed_by: MOCK_REVIEWER_ID,
+                reviewed_at: reviewedAt,
+                balance: nextBalance,
+              }
+            : request,
       );
       return syncEmployeeBalances(
         updated,
         selectedRequest.employee_id,
-        nextBalance
+        nextBalance,
       );
     });
 

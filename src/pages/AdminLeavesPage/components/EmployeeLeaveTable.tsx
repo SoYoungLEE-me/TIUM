@@ -14,10 +14,7 @@ import {
 import { LEAVES_TABLE_UNIT_NOTE } from "../../../configs/admin/leaves";
 import type { EmployeeLeaveRow } from "../../../models/admin/leaves";
 import { getInitials } from "../../../utils/admin/admin";
-import {
-  formatLeaveDays,
-  getAvatarColor,
-} from "../../../utils/admin/leaves";
+import { formatLeaveDays, getAvatarColor } from "../../../utils/admin/leaves";
 import LeaveUsageGauge from "./LeaveUsageGauge";
 
 type EmployeeLeaveTableProps = {
@@ -43,7 +40,7 @@ const ROW_GRID = {
   alignItems: "center",
   width: "100%",
   minWidth: ROW_MIN_WIDTH,
-} as const;
+};
 
 const EmployeeLeaveTable = ({
   rows,
@@ -91,7 +88,9 @@ const EmployeeLeaveTable = ({
 
       {rows.length === 0 ? (
         <Box sx={{ px: 2.5, pb: 3 }}>
-          <Typography color="text.secondary">표시할 직원이 없습니다.</Typography>
+          <Typography color="text.secondary">
+            표시할 직원이 없습니다.
+          </Typography>
         </Box>
       ) : (
         <>

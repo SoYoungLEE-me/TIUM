@@ -1,17 +1,20 @@
 import { Box, Paper, Typography } from "@mui/material";
 import { DAY_STATUS_STYLE } from "../../../configs/employee/attendance";
-import type { AttendanceSummary } from "../../../models/employee/attendance";
+import type {
+  AttendanceSummary,
+  DayStatus,
+} from "../../../models/employee/attendance";
 
 type AttendanceSummaryCardsProps = {
   summary: AttendanceSummary;
 };
 
 const AttendanceSummaryCards = ({ summary }: AttendanceSummaryCardsProps) => {
-  const cards = [
+  const cards: { key: DayStatus; label: string; value: number }[] = [
     { key: "present", label: "정상 출근", value: summary.present },
     { key: "late", label: "지각", value: summary.late },
     { key: "leave", label: "연차 사용", value: summary.leave },
-  ] as const;
+  ];
 
   return (
     <Box

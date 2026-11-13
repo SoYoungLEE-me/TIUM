@@ -1,0 +1,5413 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HR ERP MVP API",
+    "version": "1.0.0",
+    "description": "HR ERP MVP API 계약 (single-company). 스키마는 public 마이그레이션 테이블 컬럼을 기준으로 한다. 역할: employees.role = employee | hr_admin. 근태: work_date·check_in·check_out은 백엔드 RPC가 서버 시각으로 기록·지각(status) 판정. 연차 응답 계산(백엔드): remaining_days = leave_balances.total_days - used_days; pending_days = 해당 연도 pending leave_requests.total_days 합; available_days = remaining_days - pending_days. 승인/반려 시 reviewed_by = 처리한 hr_admin의 auth.uid() (RPC/trigger). company_settings 싱글톤 id=true. 인증: Supabase access token. AI 채팅: 클라이언트는 POST /api/assistant/messages 만 호출하며, API 게이트웨이(server/assistant-proxy)가 Supabase Edge Function `assistant-messages`(/functions/v1/assistant-messages)로 프록시한다. 프론트는 Edge URL을 직접 호출하지 않는다."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "API 게이트웨이(assistant 프록시 포함). 실제 배포 백엔드 주소로 변경."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "계정"
+    },
+    {
+      "name": "대시보드"
+    },
+    {
+      "name": "근태"
+    },
+    {
+      "name": "연차 조회"
+    },
+    {
+      "name": "연차 신청"
+    },
+    {
+      "name": "규정"
+    },
+    {
+      "name": "관리자 신청"
+    },
+    {
+      "name": "관리자 연차"
+    },
+    {
+      "name": "관리자 설정"
+    },
+    {
+      "name": "AI 채팅"
+    }
+  ],
+  "paths": {
+    "/api/assistant/messages": {
+      "post": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "operationId": "sendAssistantMessage",
+        "summary": "직원 질문·연차 조회·신청 확인 양식",
+        "description": "구현: API 게이트웨이가 본 경로를 Supabase Edge Function `assistant-messages`로 프록시한다 (로컬: server/assistant-proxy → {SUPABASE_URL}/functions/v1/assistant-messages). 클라이언트·OpenAPI 경로는 /api/assistant/messages 로 고정. 첫 요청 conversation_id는 null 또는 생략. 이후 서버가 발급한 대화 ID 사용. 대화 소유권 검사. AI는 허용된 내부 조회·검증 도구를 호출하고 SQL 또는 승인 상태를 직접 쓰지 않는다. 상대 날짜는 회사 시간대 기준으로 해석하고 절대 날짜를 확인한다. 신청 확인 응답은 DB 신청 생성이 아니다. 대화는 임시 서버 저장 가능하며 만료·재시작 유실 시 새 대화를 시작한다. 공급업체 키는 서버 전용(Edge secrets). type별 payload를 프론트가 구분한다.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              },
+              "examples": {
+                "first_message": {
+                  "value": {
+                    "conversation_id": null,
+                    "message": "11월 13일 오전 반차 신청해 줘."
+                  }
+                },
+                "followup": {
+                  "value": {
+                    "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                    "message": "오전으로 할게."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                },
+                "examples": {
+                  "answer": {
+                    "value": {
+                      "data": {
+                        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                        "type": "answer",
+                        "message": "잔여 10일 중 검토 대기 1일을 제외하면 9일을 신청할 수 있어요.",
+                        "payload": {
+                          "balance": {
+                            "year": 2026,
+                            "total_days": 15,
+                            "used_days": 5,
+                            "remaining_days": 10,
+                            "pending_days": 1,
+                            "available_days": 9
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "clarification": {
+                    "value": {
+                      "data": {
+                        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                        "type": "clarification",
+                        "message": "오전 반차와 오후 반차 중 어떤 유형인가요?",
+                        "payload": {
+                          "missing_fields": [
+                            "leave_type"
+                          ],
+                          "options": [
+                            {
+                              "label": "오전 반차",
+                              "value": "am_half"
+                            },
+                            {
+                              "label": "오후 반차",
+                              "value": "pm_half"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "leave_confirmation": {
+                    "value": {
+                      "data": {
+                        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                        "type": "leave_confirmation",
+                        "message": "날짜와 차감 일수를 확인한 뒤 제출해 주세요.",
+                        "payload": {
+                          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                          "leave_type_name": "오전 반차",
+                          "start_date": "2026-11-13",
+                          "end_date": "2026-11-13",
+                          "total_days": 0.5,
+                          "balance": {
+                            "year": 2026,
+                            "total_days": 15,
+                            "used_days": 5,
+                            "remaining_days": 10,
+                            "pending_days": 1,
+                            "available_days": 9
+                          },
+                          "can_submit": true,
+                          "expected_status": "approved",
+                          "review_reasons": [],
+                          "confirmation_token": "opaque-server-issued-token",
+                          "expires_at": "2026-11-10T03:10:00Z"
+                        }
+                      }
+                    }
+                  },
+                  "pending_confirmation": {
+                    "value": {
+                      "data": {
+                        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                        "type": "leave_confirmation",
+                        "message": "사전 신청 기간을 충족하지 않아 HR 검토가 필요해요. 확인 후 제출해 주세요.",
+                        "payload": {
+                          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                          "leave_type_name": "오전 반차",
+                          "start_date": "2026-11-13",
+                          "end_date": "2026-11-13",
+                          "total_days": 0.5,
+                          "balance": {
+                            "year": 2026,
+                            "total_days": 15,
+                            "used_days": 5,
+                            "remaining_days": 10,
+                            "pending_days": 1,
+                            "available_days": 9
+                          },
+                          "can_submit": true,
+                          "expected_status": "pending",
+                          "review_reasons": [
+                            "INSUFFICIENT_NOTICE"
+                          ],
+                          "confirmation_token": "opaque-server-issued-token",
+                          "expires_at": "2026-11-10T03:10:00Z"
+                        }
+                      }
+                    }
+                  },
+                  "blocked": {
+                    "value": {
+                      "data": {
+                        "conversation_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                        "type": "blocked",
+                        "message": "신청 가능한 연차가 부족합니다.",
+                        "payload": {
+                          "reason_codes": [
+                            "INSUFFICIENT_BALANCE"
+                          ],
+                          "available_days": 0.5,
+                          "requested_days": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "대화를 찾을 수 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "CONVERSATION_NOT_FOUND",
+                        "message": "대화를 찾을 수 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "대화가 만료되었습니다. 새 대화를 시작해 주세요.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "CONVERSATION_EXPIRED",
+                        "message": "대화가 만료되었습니다. 새 대화를 시작해 주세요.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI 연결이 일시적으로 불가능합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "AI_UNAVAILABLE",
+                        "message": "AI 연결이 일시적으로 불가능합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leaves/validate": {
+      "post": {
+        "tags": [
+          "연차 신청"
+        ],
+        "operationId": "validateLeaveRequest",
+        "summary": "신청 검사·확인 토큰 발급",
+        "description": "날짜·유형 수정 시 재호출. AI 내부 prepare_leave_request와 동일한 업무 검증 로직을 사용. leave_types ID로 유형 확인, 근무일 기준 total_days 계산. leave_balances의 해당 연도 잔액에서 pending 예약량 제외. 승인 및 pending 신청의 시간대 중복 검사. 근태 충돌·자동 승인 OFF·규칙 초과는 HR 검토. 업무상 신청 불가는200 + can_submit=false, 토큰과 만료는null. 필수값·형식 오류는400. 반차는 단일 근무일 0.5일. 연도를 넘는 신청은 MVP에서 거절. 공휴일 자동 조회 제외. 확인 토큰 유효기간10분.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeaveInput"
+              },
+              "examples": {
+                "half_day": {
+                  "value": {
+                    "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    "start_date": "2026-11-13",
+                    "end_date": "2026-11-13",
+                    "reason": "개인 일정"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationResponse"
+                },
+                "examples": {
+                  "approved_expected": {
+                    "value": {
+                      "data": {
+                        "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        "leave_type_name": "오전 반차",
+                        "start_date": "2026-11-13",
+                        "end_date": "2026-11-13",
+                        "total_days": 0.5,
+                        "balance": {
+                          "year": 2026,
+                          "total_days": 15,
+                          "used_days": 5,
+                          "remaining_days": 10,
+                          "pending_days": 1,
+                          "available_days": 9
+                        },
+                        "can_submit": true,
+                        "expected_status": "approved",
+                        "review_reasons": [],
+                        "confirmation_token": "opaque-server-issued-token",
+                        "expires_at": "2026-11-10T03:10:00Z"
+                      }
+                    }
+                  },
+                  "pending_expected": {
+                    "value": {
+                      "data": {
+                        "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        "leave_type_name": "오전 반차",
+                        "start_date": "2026-11-13",
+                        "end_date": "2026-11-13",
+                        "total_days": 0.5,
+                        "balance": {
+                          "year": 2026,
+                          "total_days": 15,
+                          "used_days": 5,
+                          "remaining_days": 10,
+                          "pending_days": 1,
+                          "available_days": 9
+                        },
+                        "can_submit": true,
+                        "expected_status": "pending",
+                        "review_reasons": [
+                          "INSUFFICIENT_NOTICE"
+                        ],
+                        "confirmation_token": "opaque-server-issued-token",
+                        "expires_at": "2026-11-10T03:10:00Z"
+                      }
+                    }
+                  },
+                  "blocked": {
+                    "value": {
+                      "data": {
+                        "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        "leave_type_name": "오전 반차",
+                        "start_date": "2026-11-13",
+                        "end_date": "2026-11-13",
+                        "total_days": 1,
+                        "balance": {
+                          "year": 2026,
+                          "total_days": 1,
+                          "used_days": 0.5,
+                          "remaining_days": 0.5,
+                          "pending_days": 0,
+                          "available_days": 0.5
+                        },
+                        "can_submit": false,
+                        "expected_status": null,
+                        "review_reasons": [
+                          "INSUFFICIENT_BALANCE"
+                        ],
+                        "confirmation_token": null,
+                        "expires_at": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "사용 가능한 휴가 유형을 찾을 수 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "LEAVE_TYPE_NOT_FOUND",
+                        "message": "사용 가능한 휴가 유형을 찾을 수 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leaves": {
+      "post": {
+        "tags": [
+          "연차 신청"
+        ],
+        "operationId": "submitLeaveRequest",
+        "summary": "직원 최종 확인 후 실제 신청 제출",
+        "description": "사용자 확인 버튼으로 호출. 직원 ID·total_days·status를 클라이언트로부터 받지 않는다. 토큰의 소유권·내용·만료 확인 후 최신 잔여·중복·정책 재검사. 승인 시 leave_requests 생성 + leave_balances.used_days 증가 + leave_balance_transactions deduction을 하나의 트랜잭션으로 처리. pending은 신청만 저장하고 잔액 차감 없이 예약. 직원별 동시 처리 잠금과 신청당 차감 UNIQUE로 중복 차감 방지. amount는 차감 시 음수. 최초201, 동일 직원+submission_key+동일 내용 재시도는200 기존 결과. 같은 키 다른 내용409. 성공 재시도는 토큰 만료와 관계없이 저장된 기존 결과 우선 반환. 검사 때와 실제 제출 결과는 달라질 수 있다.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              },
+              "examples": {
+                "confirm": {
+                  "value": {
+                    "confirmation_token": "opaque-server-issued-token",
+                    "submission_key": "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "동일 제출 재시도: 기존 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponse"
+                },
+                "examples": {
+                  "replayed": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "status": "approved",
+                        "approval_type": "auto",
+                        "total_days": 0.5,
+                        "decision_reason": "자동 승인 조건 충족",
+                        "message": "오전 반차가 승인되었습니다."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "신규 신청 생성",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponse"
+                },
+                "examples": {
+                  "approved": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "status": "approved",
+                        "approval_type": "auto",
+                        "total_days": 0.5,
+                        "decision_reason": "자동 승인 조건 충족",
+                        "message": "오전 반차가 승인되었습니다."
+                      }
+                    }
+                  },
+                  "pending": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "status": "pending",
+                        "approval_type": null,
+                        "total_days": 0.5,
+                        "decision_reason": "최소 사전 신청 기간 미충족",
+                        "message": "HR 검토 대기로 접수되었습니다."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "해당 연도 연차 정보가 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "LEAVE_BALANCE_NOT_FOUND",
+                        "message": "해당 연도 연차 정보가 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "확인 토큰 또는 중복 제출 키 충돌",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "expired": {
+                    "value": {
+                      "error": {
+                        "code": "CONFIRMATION_EXPIRED",
+                        "message": "확인 시간이 만료되었습니다. 다시 검사해 주세요.",
+                        "details": {}
+                      }
+                    }
+                  },
+                  "key_conflict": {
+                    "value": {
+                      "error": {
+                        "code": "IDEMPOTENCY_CONFLICT",
+                        "message": "같은 제출 키에 다른 요청 내용이 사용되었습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "제출 시 재검사에서 신청 조건 미충족",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_balance": {
+                    "value": {
+                      "error": {
+                        "code": "INSUFFICIENT_BALANCE",
+                        "message": "현재 신청 가능한 연차가 부족합니다.",
+                        "details": {
+                          "available_days": 0,
+                          "requested_days": 0.5
+                        }
+                      }
+                    }
+                  },
+                  "overlap": {
+                    "value": {
+                      "error": {
+                        "code": "OVERLAPPING_REQUEST",
+                        "message": "겹치는 신청이 있습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get_api_leaves",
+        "summary": "내 연차 신청 목록",
+        "tags": [
+          "연차 조회"
+        ],
+        "description": "본인만 조회. year는 시작일 연도 필터, 생략하면 전체 연도. created_at DESC,id DESC. 0건은 total_pages=0.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_leavesResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": [
+                        {
+                          "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                          "employee_id": "11111111-1111-4111-8111-111111111111",
+                          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                          "leave_type_name": "오전 반차",
+                          "start_date": "2026-11-13",
+                          "end_date": "2026-11-13",
+                          "total_days": 0.5,
+                          "reason": "개인 일정",
+                          "status": "pending",
+                          "approval_type": null,
+                          "decision_reason": "최소 사전 신청 기간 미충족",
+                          "reviewed_by": null,
+                          "reviewed_at": null,
+                          "created_at": "2026-11-10T00:00:00Z",
+                          "updated_at": "2026-11-10T00:00:00Z"
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total": 1,
+                        "total_pages": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "페이지"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "페이지 크기"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "cancelled"
+              ]
+            },
+            "description": "신청 상태, 생략 시 전체"
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 9999
+            },
+            "description": "생략하면 회사 현재 연도",
+            "example": 2026
+          }
+        ]
+      }
+    },
+    "/api/me": {
+      "get": {
+        "operationId": "get_api_me",
+        "summary": "내 계정·권한 조회",
+        "tags": [
+          "계정"
+        ],
+        "description": "JWT로 employees.id 확인. employees.id=auth.users.id 가정. 활성 직원만 허용. role=hr_admin이면 관리자 진입.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_meResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "id": "11111111-1111-4111-8111-111111111111",
+                        "full_name": "김직원",
+                        "email": "employee@example.com",
+                        "role": "employee",
+                        "department": "개발팀"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "operationId": "get_api_dashboard",
+        "summary": "직원 대시보드 조회",
+        "tags": [
+          "대시보드"
+        ],
+        "description": "직원 대시보드. data: today_attendance, balance, recent_requests. 출근 없으면 today_attendance=null.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_dashboardResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "today_attendance": {
+                          "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                          "employee_id": "11111111-1111-4111-8111-111111111111",
+                          "work_date": "2026-11-12",
+                          "check_in": "2026-11-11T23:54:00Z",
+                          "check_out": null,
+                          "status": "present"
+                        },
+                        "balance": {
+                          "year": 2026,
+                          "total_days": 15,
+                          "used_days": 4.5,
+                          "remaining_days": 10.5,
+                          "pending_days": 3,
+                          "available_days": 7.5
+                        },
+                        "recent_requests": [
+                          {
+                            "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                            "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                            "leave_type_name": "연차",
+                            "start_date": "2026-11-16",
+                            "end_date": "2026-11-18",
+                            "total_days": 3,
+                            "status": "pending",
+                            "approval_type": null,
+                            "decision_reason": "자동 승인 최대 연속 일수를 초과한 예외 신청입니다.",
+                            "created_at": "2026-11-11T00:42:00Z"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendance/check-in": {
+      "post": {
+        "operationId": "post_api_attendance_check_in",
+        "summary": "출근 (백엔드가 work_date·check_in·status 기록)",
+        "tags": [
+          "근태"
+        ],
+        "description": "백엔드 RPC. 클라이언트가 work_date/check_in을 보내지 않음. 서버 시각으로 work_date·check_in 기록, company_settings로 present|late 판정.",
+        "responses": {
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_attendance_check_inResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "work_date": "2026-11-10",
+                        "check_in": "2026-11-10T00:00:00Z",
+                        "check_out": null,
+                        "status": "present"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "이미 출근 기록이 있습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "ALREADY_CHECKED_IN",
+                        "message": "이미 출근 기록이 있습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "승인된 휴가와 시간대가 충돌합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "ATTENDANCE_LEAVE_CONFLICT",
+                        "message": "승인된 휴가와 시간대가 충돌합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendance/check-out": {
+      "post": {
+        "operationId": "post_api_attendance_check_out",
+        "summary": "퇴근 (백엔드가 check_out 기록)",
+        "tags": [
+          "근태"
+        ],
+        "description": "백엔드 RPC. 당일 attendance_records.check_out을 서버 시각으로 UPDATE.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_attendance_check_outResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "work_date": "2026-11-10",
+                        "check_in": "2026-11-10T00:00:00Z",
+                        "check_out": "2026-11-10T09:00:00Z",
+                        "status": "present"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "출근 전이거나 이미 퇴근했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "INVALID_ATTENDANCE_STATE",
+                        "message": "출근 전이거나 이미 퇴근했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attendance": {
+      "get": {
+        "operationId": "get_api_attendance",
+        "summary": "근태 캘린더 조회",
+        "tags": [
+          "근태"
+        ],
+        "description": "직원 근태 캘린더. data: employee_id, work_start_time, work_end_time, records[], leaves[]. leaves는 승인·pending 연차 합성(근태 테이블 미저장).",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_attendanceResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "work_start_time": "09:00:00",
+                        "work_end_time": "18:00:00",
+                        "records": [
+                          {
+                            "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                            "work_date": "2026-11-12",
+                            "check_in": "2026-11-11T23:54:00Z",
+                            "check_out": null,
+                            "status": "present"
+                          }
+                        ],
+                        "leaves": [
+                          {
+                            "id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+                            "leave_type_name": "연차",
+                            "start_date": "2026-11-16",
+                            "end_date": "2026-11-18",
+                            "total_days": 3,
+                            "status": "pending",
+                            "approval_type": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "description": "조회 월. 응답은 월 전체 날짜.",
+            "example": "2026-11"
+          }
+        ]
+      }
+    },
+    "/api/leaves/balance": {
+      "get": {
+        "operationId": "get_api_leaves_balance",
+        "summary": "내 연도별 연차 요약",
+        "tags": [
+          "연차 조회"
+        ],
+        "description": "leave_balances 조회. pending 신청은 동일 잔액 연도 예약 합계. 미래 승인 포함 used_days. 등록된 잔액 행이 없으면404.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_leaves_balanceResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "year": 2026,
+                        "total_days": 15,
+                        "used_days": 5,
+                        "remaining_days": 10,
+                        "pending_days": 1,
+                        "available_days": 9
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "해당 연도의 연차 정보가 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "LEAVE_BALANCE_NOT_FOUND",
+                        "message": "해당 연도의 연차 정보가 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 9999
+            },
+            "description": "생략하면 회사 현재 연도",
+            "example": 2026
+          }
+        ]
+      }
+    },
+    "/api/leaves/{request_id}": {
+      "get": {
+        "operationId": "get_api_leaves__request_id_",
+        "summary": "내 신청 상세",
+        "tags": [
+          "연차 조회"
+        ],
+        "description": "본인 신청만 조회. 타인 신청과 없는 신청은 동일404. 별도 처리 이력 테이블은 팀원 원본에 없으므로 최종 상태·사유·처리자만 반환.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_leaves__request_id_Response"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        "leave_type_name": "오전 반차",
+                        "start_date": "2026-11-13",
+                        "end_date": "2026-11-13",
+                        "total_days": 0.5,
+                        "reason": "개인 일정",
+                        "status": "pending",
+                        "approval_type": null,
+                        "decision_reason": "최소 사전 신청 기간 미충족",
+                        "reviewed_by": null,
+                        "reviewed_at": null,
+                        "created_at": "2026-11-10T00:00:00Z",
+                        "updated_at": "2026-11-10T00:00:00Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "신청을 찾을 수 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "LEAVE_NOT_FOUND",
+                        "message": "신청을 찾을 수 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "format": "uuid"
+            },
+            "example": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+          }
+        ]
+      }
+    },
+    "/api/company-policy": {
+      "get": {
+        "operationId": "get_api_company_policy",
+        "summary": "직원 공개 휴가·근무 규정",
+        "tags": [
+          "규정"
+        ],
+        "description": "회사 공통 공개 규칙. 직원 개인정보·관리자 비밀키 포함 금지. 활성 유형과 기본 규칙 한 세트. 승인 검사는 구조화 값 사용.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_company_policyResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "company_settings": {
+                          "id": true,
+                          "work_start_time": "09:00:00",
+                          "work_end_time": "18:00:00",
+                          "late_threshold": 0,
+                          "auto_approval_enabled": true,
+                          "updated_at": "2026-11-10T00:00:00Z"
+                        },
+                        "leave_types": [
+                          {
+                            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                            "name": "오전 반차",
+                            "deduction_days": 0.5,
+                            "is_active": true
+                          }
+                        ],
+                        "approval_rules": [
+                          {
+                            "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                            "rule_name": "기본 자동 승인 규칙",
+                            "max_consecutive_days": 3,
+                            "min_notice_days": 1,
+                            "is_active": true
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/leaves": {
+      "get": {
+        "operationId": "get_api_admin_leaves",
+        "summary": "전체 직원 연차 신청 목록",
+        "tags": [
+          "관리자 신청"
+        ],
+        "description": "admin 전용. 자동 승인·수동 승인·검토 대기 목록. 생성일 내림차순.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_admin_leavesResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": [
+                        {
+                          "request": {
+                            "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                            "employee_id": "11111111-1111-4111-8111-111111111111",
+                            "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                            "leave_type_name": "오전 반차",
+                            "start_date": "2026-11-13",
+                            "end_date": "2026-11-13",
+                            "total_days": 0.5,
+                            "reason": "개인 일정",
+                            "status": "pending",
+                            "approval_type": null,
+                            "decision_reason": "최소 사전 신청 기간 미충족",
+                            "reviewed_by": null,
+                            "reviewed_at": null,
+                            "created_at": "2026-11-10T00:00:00Z",
+                            "updated_at": "2026-11-10T00:00:00Z"
+                          },
+                          "employee": {
+                            "id": "11111111-1111-4111-8111-111111111111",
+                            "full_name": "김직원",
+                            "email": "employee@example.com",
+                            "role": "employee",
+                            "department": "개발팀"
+                          }
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total": 1,
+                        "total_pages": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "페이지"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "페이지 크기"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "cancelled"
+              ]
+            },
+            "description": "신청 상태, 생략 시 전체"
+          },
+          {
+            "in": "query",
+            "name": "employee_id",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "format": "uuid"
+            },
+            "description": "직원 필터"
+          },
+          {
+            "in": "query",
+            "name": "approval_type",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "enum": [
+                "auto",
+                "manual"
+              ]
+            },
+            "description": "처리 방식 필터"
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 9999
+            },
+            "description": "생략하면 회사 현재 연도",
+            "example": 2026
+          }
+        ]
+      }
+    },
+    "/api/admin/leaves/{request_id}": {
+      "get": {
+        "operationId": "get_api_admin_leaves__request_id_",
+        "summary": "HR 신청 검토 상세",
+        "tags": [
+          "관리자 신청"
+        ],
+        "description": "admin 전용. 신청·직원·차감 대상 연도 잔액·관련 근태 충돌 조회. 상세 패널에서 표시.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_admin_leaves__request_id_Response"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "request": {
+                          "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                          "employee_id": "11111111-1111-4111-8111-111111111111",
+                          "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                          "leave_type_name": "오전 반차",
+                          "start_date": "2026-11-13",
+                          "end_date": "2026-11-13",
+                          "total_days": 0.5,
+                          "reason": "개인 일정",
+                          "status": "pending",
+                          "approval_type": null,
+                          "decision_reason": "최소 사전 신청 기간 미충족",
+                          "reviewed_by": null,
+                          "reviewed_at": null,
+                          "created_at": "2026-11-10T00:00:00Z",
+                          "updated_at": "2026-11-10T00:00:00Z"
+                        },
+                        "balance": {
+                          "year": 2026,
+                          "total_days": 15,
+                          "used_days": 5,
+                          "remaining_days": 10,
+                          "pending_days": 1,
+                          "available_days": 9
+                        },
+                        "attendance_conflicts": [],
+                        "employee": {
+                          "id": "11111111-1111-4111-8111-111111111111",
+                          "full_name": "김직원",
+                          "email": "employee@example.com",
+                          "role": "employee",
+                          "department": "개발팀"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "신청을 찾을 수 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "LEAVE_NOT_FOUND",
+                        "message": "신청을 찾을 수 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "format": "uuid"
+            },
+            "example": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+          }
+        ]
+      }
+    },
+    "/api/admin/leaves/{request_id}/approve": {
+      "post": {
+        "operationId": "post_api_admin_leaves__request_id__approve",
+        "summary": "HR 승인",
+        "tags": [
+          "관리자 신청"
+        ],
+        "description": "admin 전용. pending만 처리. 직원별 잠금 후 잔액·중복 재검사. 자기 예약량 제외. 근태 충돌은 사유를 남기고 수동 승인 가능하나 잔액 부족·중복은 무시할 수 없음. 상태 변경+used_days 증가+deduction 음수 이력을 단일 트랜잭션으로 저장. reviewed_by에는 요청한 hr_admin의 auth.uid()(=employees.id)를 서버/RPC/trigger가 기록한다. 클라이언트가 reviewed_by를 지정하지 않는다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_admin_leaves__request_id__approveResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        "leave_type_name": "오전 반차",
+                        "start_date": "2026-11-13",
+                        "end_date": "2026-11-13",
+                        "total_days": 0.5,
+                        "reason": "개인 일정",
+                        "status": "approved",
+                        "approval_type": "manual",
+                        "decision_reason": "근태 확인 후 승인합니다.",
+                        "reviewed_by": "11111111-1111-4111-8111-111111111111",
+                        "reviewed_at": "2026-11-10T00:00:00Z",
+                        "created_at": "2026-11-10T00:00:00Z",
+                        "updated_at": "2026-11-10T00:00:00Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "신청을 찾을 수 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "LEAVE_NOT_FOUND",
+                        "message": "신청을 찾을 수 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "이미 처리된 신청입니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "ALREADY_PROCESSED",
+                        "message": "이미 처리된 신청입니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "현재 잔여 또는 중복 조건을 충족하지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RULE_VIOLATION",
+                        "message": "현재 잔여 또는 중복 조건을 충족하지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionInput"
+              },
+              "examples": {
+                "request": {
+                  "value": {
+                    "reason": "근태 확인 후 승인합니다."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "format": "uuid"
+            },
+            "example": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+          }
+        ]
+      }
+    },
+    "/api/admin/leaves/{request_id}/reject": {
+      "post": {
+        "operationId": "post_api_admin_leaves__request_id__reject",
+        "summary": "HR 반려",
+        "tags": [
+          "관리자 신청"
+        ],
+        "description": "admin 전용. pending만 처리. 반려 사유 필수. 상태를 rejected로 변경하면 pending 예약 해제. used_days 변경·차감 이력 생성 없음. reviewed_by에는 요청한 hr_admin의 auth.uid()(=employees.id)를 서버/RPC/trigger가 기록한다. 클라이언트가 reviewed_by를 지정하지 않는다.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_admin_leaves__request_id__rejectResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "leave_type_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        "leave_type_name": "오전 반차",
+                        "start_date": "2026-11-13",
+                        "end_date": "2026-11-13",
+                        "total_days": 0.5,
+                        "reason": "개인 일정",
+                        "status": "rejected",
+                        "approval_type": "manual",
+                        "decision_reason": "신청 내용 확인이 필요합니다.",
+                        "reviewed_by": "11111111-1111-4111-8111-111111111111",
+                        "reviewed_at": "2026-11-10T00:00:00Z",
+                        "created_at": "2026-11-10T00:00:00Z",
+                        "updated_at": "2026-11-10T00:00:00Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "신청을 찾을 수 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "LEAVE_NOT_FOUND",
+                        "message": "신청을 찾을 수 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "이미 처리된 신청입니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "ALREADY_PROCESSED",
+                        "message": "이미 처리된 신청입니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionInput"
+              },
+              "examples": {
+                "request": {
+                  "value": {
+                    "reason": "신청 내용 확인이 필요합니다."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "format": "uuid"
+            },
+            "example": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+          }
+        ]
+      }
+    },
+    "/api/admin/employees/balances": {
+      "get": {
+        "operationId": "get_api_admin_employees_balances",
+        "summary": "직원별 연차 조회",
+        "tags": [
+          "관리자 연차"
+        ],
+        "description": "admin 전용. 별도 직원 관리 페이지가 아닌 /admin 연차 부여 대상 조회. 해당 연도 미등록 직원은 balance=null로 표시.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_admin_employees_balancesResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": [
+                        {
+                          "balance": {
+                            "year": 2026,
+                            "total_days": 15,
+                            "used_days": 5,
+                            "remaining_days": 10,
+                            "pending_days": 1,
+                            "available_days": 9
+                          },
+                          "employee": {
+                            "id": "11111111-1111-4111-8111-111111111111",
+                            "full_name": "김직원",
+                            "email": "employee@example.com",
+                            "role": "employee",
+                            "department": "개발팀"
+                          }
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 20,
+                        "total": 1,
+                        "total_pages": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "description": "페이지"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "description": "페이지 크기"
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 9999
+            },
+            "description": "생략하면 회사 현재 연도",
+            "example": 2026
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "",
+              "maxLength": 100
+            },
+            "description": "이름 검색"
+          }
+        ]
+      }
+    },
+    "/api/admin/leave-grants": {
+      "post": {
+        "operationId": "post_api_admin_leave_grants",
+        "summary": "직원 연차 부여",
+        "tags": [
+          "관리자 연차"
+        ],
+        "description": "admin 전용. 해당 직원+연도 balance가 없으면 생성. 기존 값이 있으면 total_days에 가산(덮어쓰기 아님). grant 양수 이력과 잔액을 단일 트랜잭션으로 저장. submission_key 중복 방지. 동일 키·동일 내용은 기존 결과200, 다른 내용409. 자동 발생·소멸 제외.",
+        "responses": {
+          "200": {
+            "description": "동일 부여 재시도: 기존 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_admin_leave_grantsResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "transaction_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "year": 2026,
+                        "added_days": 15,
+                        "balance": {
+                          "year": 2026,
+                          "total_days": 30,
+                          "used_days": 5,
+                          "remaining_days": 25,
+                          "pending_days": 1,
+                          "available_days": 24
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/post_api_admin_leave_grantsResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "transaction_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                        "employee_id": "11111111-1111-4111-8111-111111111111",
+                        "year": 2026,
+                        "added_days": 15,
+                        "balance": {
+                          "year": 2026,
+                          "total_days": 30,
+                          "used_days": 5,
+                          "remaining_days": 25,
+                          "pending_days": 1,
+                          "available_days": 24
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "직원을 찾을 수 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "EMPLOYEE_NOT_FOUND",
+                        "message": "직원을 찾을 수 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "같은 키에 다른 요청이 있습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "IDEMPOTENCY_CONFLICT",
+                        "message": "같은 키에 다른 요청이 있습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantInput"
+              },
+              "examples": {
+                "request": {
+                  "value": {
+                    "employee_id": "11111111-1111-4111-8111-111111111111",
+                    "year": 2026,
+                    "days": 15,
+                    "reason": "초기 연차 부여",
+                    "submission_key": "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/settings": {
+      "get": {
+        "operationId": "get_api_admin_settings",
+        "summary": "기본 회사·승인 설정 조회",
+        "tags": [
+          "관리자 설정"
+        ],
+        "description": "admin 전용. 회사 설정·기본 승인 규칙 한 세트·휴가 유형. 별도 설정 페이지 없이 /admin 안에서 사용.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/get_api_admin_settingsResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "company_settings": {
+                          "id": true,
+                          "work_start_time": "09:00:00",
+                          "work_end_time": "18:00:00",
+                          "late_threshold": 0,
+                          "auto_approval_enabled": true,
+                          "updated_at": "2026-11-10T00:00:00Z"
+                        },
+                        "leave_types": [
+                          {
+                            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                            "name": "오전 반차",
+                            "deduction_days": 0.5,
+                            "is_active": true
+                          }
+                        ],
+                        "approval_rules": [
+                          {
+                            "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                            "rule_name": "기본 자동 승인 규칙",
+                            "max_consecutive_days": 3,
+                            "min_notice_days": 1,
+                            "is_active": true
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_api_admin_settings",
+        "summary": "기본 회사·승인 설정 수정",
+        "tags": [
+          "관리자 설정"
+        ],
+        "description": "admin 전용. 부분 수정. version 검증 후 관련 테이블 변경을 한 번에 저장. 회사 시간대는 이번 MVP 고정. max_consecutive_days는 실제 차감 근무일 수, min_notice_days는 달력일 기준이라는 제안 가정. 비활성 규칙은 해당 제한 검사를 생략. 자동 승인 OFF면 유효 신청은 pending. 설정 변경은 기존 승인·과거 지각 판정을 바꾸지 않음. 최신 규칙은 신규 제출과 HR 재검사에 적용.",
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/patch_api_admin_settingsResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "data": {
+                        "company_settings": {
+                          "id": true,
+                          "work_start_time": "09:00:00",
+                          "work_end_time": "18:00:00",
+                          "late_threshold": 0,
+                          "auto_approval_enabled": false,
+                          "updated_at": "2026-11-10T00:00:00Z"
+                        },
+                        "leave_types": [
+                          {
+                            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                            "name": "오전 반차",
+                            "deduction_days": 0.5,
+                            "is_active": true
+                          }
+                        ],
+                        "approval_rules": [
+                          {
+                            "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                            "rule_name": "기본 자동 승인 규칙",
+                            "max_consecutive_days": 3,
+                            "min_notice_days": 1,
+                            "is_active": true
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "필수값 또는 입력 형식이 올바르지 않습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "필수값 또는 입력 형식이 올바르지 않습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "로그인이 필요합니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "로그인이 필요합니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "비활성 직원이거나 접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "비활성 직원이거나 접근 권한이 없습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "다른 관리자가 먼저 설정을 변경했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "SETTINGS_VERSION_CONFLICT",
+                        "message": "다른 관리자가 먼저 설정을 변경했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "호출 한도를 초과했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "error": {
+                    "value": {
+                      "error": {
+                        "code": "RATE_LIMITED",
+                        "message": "호출 한도를 초과했습니다.",
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdate"
+              },
+              "examples": {
+                "request": {
+                  "value": {
+                    "company_settings": {
+                      "auto_approval_enabled": false
+                    },
+                    "approval_rules": [
+                      {
+                        "max_consecutive_days": 3,
+                        "min_notice_days": 1,
+                        "is_active": true
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase Auth에서 발급한 직원 access token. AI 제공업체 API 키를 넣지 않는다."
+      }
+    },
+    "schemas": {
+      "Balance": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "leave_balances + 백엔드 계산 필드. total_days/used_days는 DB, 나머지는 서버 계산.",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "minimum": 2000
+          },
+          "total_days": {
+            "type": "number",
+            "minimum": 0,
+            "description": "leave_balances.total_days (부여 총량)"
+          },
+          "used_days": {
+            "type": "number",
+            "minimum": 0,
+            "description": "leave_balances.used_days"
+          },
+          "remaining_days": {
+            "type": "number",
+            "minimum": 0,
+            "description": "백엔드 계산: total_days - used_days"
+          },
+          "pending_days": {
+            "type": "number",
+            "minimum": 0,
+            "description": "백엔드 계산: 해당 연도 pending leave_requests.total_days 합"
+          },
+          "available_days": {
+            "type": "number",
+            "minimum": 0,
+            "description": "백엔드 계산: remaining_days - pending_days"
+          }
+        },
+        "required": [
+          "year",
+          "total_days",
+          "used_days",
+          "remaining_days",
+          "pending_days",
+          "available_days"
+        ]
+      },
+      "ChatRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "첫 요청은 null 또는 생략. 서버가 발급한 대화만 사용.",
+            "format": "uuid",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "직원 메시지. 직원 ID와 권한은 서버 인증 세션에서 결정.",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "LeaveInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "leave_type_id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "start_date": {
+            "type": "string",
+            "description": "",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "description": "",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string",
+            "description": "신청 사유",
+            "nullable": true,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "leave_type_id",
+          "start_date",
+          "end_date"
+        ]
+      },
+      "ReasonCode": {
+        "type": "string",
+        "description": "검증 결과 코드",
+        "enum": [
+          "INVALID_DATE_RANGE",
+          "NO_WORKING_DAYS",
+          "HALF_DAY_DISABLED",
+          "INVALID_HALF_DAY_RANGE",
+          "INSUFFICIENT_BALANCE",
+          "OVERLAPPING_REQUEST",
+          "ATTENDANCE_CONFLICT",
+          "AUTO_APPROVAL_DISABLED",
+          "EXCEEDS_MAX_CONSECUTIVE_DAYS",
+          "INSUFFICIENT_NOTICE"
+        ]
+      },
+      "LeavePreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "leave_type_id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "leave_type_name": {
+            "type": "string",
+            "description": ""
+          },
+          "start_date": {
+            "type": "string",
+            "description": "",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "description": "",
+            "format": "date"
+          },
+          "total_days": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "multipleOf": 0.5,
+            "description": "서버가 계산한 실제 차감 일수. leave_requests.total_days에 대응."
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Balance"
+          },
+          "can_submit": {
+            "type": "boolean"
+          },
+          "expected_status": {
+            "type": "string",
+            "description": "제출 시 재검사하므로 실제 결과는 바뀔 수 있음.",
+            "enum": [
+              "approved",
+              "pending"
+            ],
+            "nullable": true
+          },
+          "review_reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            }
+          },
+          "confirmation_token": {
+            "type": "string",
+            "description": "직원·내용·만료에 연결된 서버 발급 토큰. 신청 불가면 null.",
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "description": "",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "leave_type_id",
+          "leave_type_name",
+          "start_date",
+          "end_date",
+          "total_days",
+          "balance",
+          "can_submit",
+          "expected_status",
+          "review_reasons",
+          "confirmation_token",
+          "expires_at"
+        ]
+      },
+      "SubmitRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "confirmation_token": {
+            "type": "string",
+            "description": "",
+            "minLength": 1
+          },
+          "submission_key": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "confirmation_token",
+          "submission_key"
+        ]
+      },
+      "SubmittedLeave": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "description": "approved는 approval_type=auto, pending은 approval_type=null. 본 API는 HR 최종 처리를 수행하지 않는다.",
+            "enum": [
+              "approved",
+              "pending"
+            ]
+          },
+          "approval_type": {
+            "type": "string",
+            "description": "자동 승인은 auto, HR 검토 대기는 null. manual은 별도 관리자 처리에서 설정.",
+            "enum": [
+              "auto"
+            ],
+            "nullable": true
+          },
+          "total_days": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "multipleOf": 0.5,
+            "description": ""
+          },
+          "decision_reason": {
+            "type": "string",
+            "description": ""
+          },
+          "message": {
+            "type": "string",
+            "description": ""
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "approval_type",
+          "total_days",
+          "decision_reason",
+          "message"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": ""
+              },
+              "message": {
+                "type": "string",
+                "description": ""
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "AnswerPayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Balance"
+          }
+        },
+        "required": [],
+        "description": "연차 조회 시 balance 포함. 일반 회사 규정 답변은 빈 객체 가능. 실제 안내 문장은 message."
+      },
+      "ClarificationPayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "missing_fields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "",
+              "enum": [
+                "leave_type",
+                "start_date",
+                "end_date",
+                "reason"
+              ]
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "description": ""
+                },
+                "value": {
+                  "type": "string",
+                  "description": ""
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ]
+            }
+          }
+        },
+        "required": [
+          "missing_fields",
+          "options"
+        ]
+      },
+      "BlockedPayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason_codes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReasonCode"
+            }
+          },
+          "available_days": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "multipleOf": 0.5,
+            "description": ""
+          },
+          "requested_days": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "multipleOf": 0.5,
+            "description": ""
+          }
+        },
+        "required": [
+          "reason_codes"
+        ]
+      },
+      "Answer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "answer"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": ""
+          },
+          "payload": {
+            "$ref": "#/components/schemas/AnswerPayload"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "type",
+          "message",
+          "payload"
+        ]
+      },
+      "Clarification": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "clarification"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": ""
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ClarificationPayload"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "type",
+          "message",
+          "payload"
+        ]
+      },
+      "LeaveConfirmation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "leave_confirmation"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": ""
+          },
+          "payload": {
+            "$ref": "#/components/schemas/LeavePreview"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "type",
+          "message",
+          "payload"
+        ]
+      },
+      "Blocked": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "description": "",
+            "enum": [
+              "blocked"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": ""
+          },
+          "payload": {
+            "$ref": "#/components/schemas/BlockedPayload"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "type",
+          "message",
+          "payload"
+        ]
+      },
+      "ChatResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Answer"
+              },
+              {
+                "$ref": "#/components/schemas/Clarification"
+              },
+              {
+                "$ref": "#/components/schemas/LeaveConfirmation"
+              },
+              {
+                "$ref": "#/components/schemas/Blocked"
+              }
+            ],
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "answer": "#/components/schemas/Answer",
+                "clarification": "#/components/schemas/Clarification",
+                "leave_confirmation": "#/components/schemas/LeaveConfirmation",
+                "blocked": "#/components/schemas/Blocked"
+              }
+            }
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "ValidationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LeavePreview"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SubmitResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SubmittedLeave"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "Attendance": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "public.attendance_records. work_date·check_in·check_out·status는 백엔드 RPC가 서버 기준으로 기록/판정.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employee_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "work_date": {
+            "type": "string",
+            "format": "date",
+            "description": "백엔드가 서버 날짜로 설정"
+          },
+          "check_in": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "백엔드가 서버 시각으로 설정"
+          },
+          "check_out": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "백엔드가 서버 시각으로 설정"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "late"
+            ],
+            "nullable": true,
+            "description": "company_settings 기준 백엔드 판정"
+          }
+        },
+        "required": [
+          "id",
+          "employee_id",
+          "work_date"
+        ]
+      },
+      "LeaveRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "public.leave_requests. leave_type_name은 leave_types.name 조인(백엔드).",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employee_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leave_type_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leave_type_name": {
+            "type": "string",
+            "description": "leave_types.name 조인"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "total_days": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "leave_requests.total_days (신청 일수)"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "cancelled"
+            ]
+          },
+          "approval_type": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "nullable": true
+          },
+          "decision_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewed_by": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "처리한 hr_admin employees.id"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "employee_id",
+          "leave_type_id",
+          "start_date",
+          "end_date",
+          "total_days",
+          "status",
+          "created_at"
+        ]
+      },
+      "Page": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ]
+      },
+      "Settings": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "public.company_settings 싱글톤",
+        "properties": {
+          "id": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "work_start_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+          },
+          "work_end_time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+          },
+          "late_threshold": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "auto_approval_enabled": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "work_start_time",
+          "work_end_time",
+          "late_threshold",
+          "auto_approval_enabled",
+          "updated_at"
+        ]
+      },
+      "ApprovalRule": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "public.approval_rules",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rule_name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "max_consecutive_days": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true
+          },
+          "min_notice_days": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "rule_name",
+          "min_notice_days",
+          "is_active"
+        ]
+      },
+      "LeaveType": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "public.leave_types (code 컬럼 없음)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "deduction_days": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "deduction_days",
+          "is_active"
+        ]
+      },
+      "SettingsBundle": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "company_settings": {
+            "$ref": "#/components/schemas/Settings"
+          },
+          "approval_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApprovalRule"
+            }
+          },
+          "leave_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeaveType"
+            }
+          }
+        },
+        "required": [
+          "company_settings",
+          "approval_rules",
+          "leave_types"
+        ]
+      },
+      "SettingsUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "company_settings": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "work_start_time": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+              },
+              "work_end_time": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+              },
+              "late_threshold": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "auto_approval_enabled": {
+                "type": "boolean"
+              }
+            }
+          },
+          "approval_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApprovalRule"
+            }
+          },
+          "leave_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeaveType"
+            }
+          }
+        }
+      },
+      "get_api_meResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Employee"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_dashboardResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "직원 대시보드. 필드명은 프론트 mock과 통일.",
+            "properties": {
+              "today_attendance": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TodayAttendance"
+                  }
+                ],
+                "nullable": true
+              },
+              "balance": {
+                "$ref": "#/components/schemas/Balance"
+              },
+              "recent_requests": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DashboardRecentLeaveRequest"
+                }
+              }
+            },
+            "required": [
+              "today_attendance",
+              "balance",
+              "recent_requests"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "post_api_attendance_check_inResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Attendance"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "post_api_attendance_check_outResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Attendance"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_attendanceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "근태 캘린더용. employee mock: employee_id, work_start_time, work_end_time, records, leaves",
+            "properties": {
+              "employee_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "work_start_time": {
+                "type": "string",
+                "pattern": "^d{2}:d{2}:d{2}$",
+                "description": "company_settings.work_start_time"
+              },
+              "work_end_time": {
+                "type": "string",
+                "pattern": "^d{2}:d{2}:d{2}$",
+                "description": "company_settings.work_end_time"
+              },
+              "records": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AttendanceRecord"
+                }
+              },
+              "leaves": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CalendarLeave"
+                }
+              }
+            },
+            "required": [
+              "employee_id",
+              "work_start_time",
+              "work_end_time",
+              "records",
+              "leaves"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_leaves_balanceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Balance"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_leavesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeaveRequest"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "get_api_leaves__request_id_Response": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LeaveRequest"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_company_policyResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "company_settings": {
+                "$ref": "#/components/schemas/Settings"
+              },
+              "leave_types": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LeaveType"
+                }
+              },
+              "approval_rules": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ApprovalRule"
+                }
+              }
+            },
+            "required": [
+              "company_settings",
+              "approval_rules",
+              "leave_types"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_admin_leavesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "request": {
+                  "$ref": "#/components/schemas/LeaveRequest"
+                },
+                "employee": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              },
+              "required": [
+                "request",
+                "employee"
+              ]
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "get_api_admin_leaves__request_id_Response": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "request": {
+                "$ref": "#/components/schemas/LeaveRequest"
+              },
+              "employee": {
+                "$ref": "#/components/schemas/Employee"
+              },
+              "balance": {
+                "$ref": "#/components/schemas/Balance"
+              },
+              "attendance_conflicts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Attendance"
+                }
+              }
+            },
+            "required": [
+              "request",
+              "employee",
+              "balance",
+              "attendance_conflicts"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "DecisionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "post_api_admin_leaves__request_id__approveResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LeaveRequest"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "post_api_admin_leaves__request_id__rejectResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LeaveRequest"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_admin_employees_balancesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "employee": {
+                  "$ref": "#/components/schemas/Employee"
+                },
+                "balance": {
+                  "$ref": "#/components/schemas/Balance",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "employee",
+                "balance"
+              ]
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Page"
+          }
+        },
+        "required": [
+          "data",
+          "pagination"
+        ]
+      },
+      "GrantInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "employee_id": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 2000,
+            "maximum": 9999
+          },
+          "days": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 366,
+            "multipleOf": 0.5
+          },
+          "reason": {
+            "type": "string",
+            "description": "",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "submission_key": {
+            "type": "string",
+            "description": "",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "employee_id",
+          "year",
+          "days",
+          "reason",
+          "submission_key"
+        ]
+      },
+      "post_api_admin_leave_grantsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "transaction_id": {
+                "type": "string",
+                "description": "",
+                "format": "uuid"
+              },
+              "employee_id": {
+                "type": "string",
+                "description": "",
+                "format": "uuid"
+              },
+              "year": {
+                "type": "integer"
+              },
+              "added_days": {
+                "type": "number",
+                "format": "double",
+                "minimum": 0,
+                "multipleOf": 0.5,
+                "description": ""
+              },
+              "balance": {
+                "$ref": "#/components/schemas/Balance"
+              }
+            },
+            "required": [
+              "transaction_id",
+              "employee_id",
+              "year",
+              "added_days",
+              "balance"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "get_api_admin_settingsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SettingsBundle"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "patch_api_admin_settingsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SettingsBundle"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "Employee": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "public.employees",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "auth.users.id FK"
+          },
+          "full_name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "employee",
+              "hr_admin"
+            ]
+          },
+          "department": {
+            "type": "string",
+            "maxLength": 100,
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "email",
+          "role",
+          "created_at"
+        ]
+      },
+      "LeaveBalanceTransaction": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "public.leave_balance_transactions",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leave_balance_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leave_request_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "transaction_type": {
+            "type": "string",
+            "enum": [
+              "grant",
+              "deduction",
+              "restoration"
+            ]
+          },
+          "amount": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "leave_balance_id",
+          "transaction_type",
+          "amount",
+          "created_at"
+        ]
+      },
+      "AttendanceRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "attendance_records 한 행 (캘린더 records[] 항목)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "work_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "check_in": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "check_out": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "late"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "work_date",
+          "check_in",
+          "check_out",
+          "status"
+        ]
+      },
+      "CalendarLeave": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "근태 캘린더에 표시할 연차 (승인·검토 중)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leave_type_name": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "total_days": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "cancelled"
+            ]
+          },
+          "approval_type": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "leave_type_name",
+          "start_date",
+          "end_date",
+          "total_days",
+          "status"
+        ]
+      },
+      "DashboardRecentLeaveRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "대시보드 최근 신청 (직원 mock 기준)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leave_type_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "leave_type_name": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "total_days": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "cancelled"
+            ]
+          },
+          "approval_type": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "nullable": true
+          },
+          "decision_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "leave_type_id",
+          "leave_type_name",
+          "start_date",
+          "end_date",
+          "total_days",
+          "status",
+          "created_at"
+        ]
+      },
+      "TodayAttendance": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "오늘 출근 기록. 없으면 null",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employee_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "work_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "check_in": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "check_out": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "present",
+              "late"
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "employee_id",
+          "work_date",
+          "check_in",
+          "check_out",
+          "status"
+        ]
+      }
+    }
+  }
+}

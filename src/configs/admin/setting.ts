@@ -56,16 +56,16 @@ export const AUTO_APPROVAL_CONDITIONS: Array<{
 export const TIME_MINUTE_STEP = 10;
 
 export const TIME_PERIOD_OPTIONS = [
-  { value: "am" as const, label: "오전" },
-  { value: "pm" as const, label: "오후" },
+  { value: "am", label: "오전" },
+  { value: "pm", label: "오후" },
 ];
 
 /** 12시간제 시 (01~12) */
 export const TIME_HOUR_12_OPTIONS = Array.from({ length: 12 }, (_, index) =>
-  String(index + 1).padStart(2, "0")
+  String(index + 1).padStart(2, "0"),
 );
 
 export const TIME_MINUTE_OPTIONS = Array.from(
   { length: 60 / TIME_MINUTE_STEP },
-  (_, index) => String(index * TIME_MINUTE_STEP).padStart(2, "0")
+  (_, index) => String(index * TIME_MINUTE_STEP).padStart(2, "0"),
 );

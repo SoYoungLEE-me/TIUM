@@ -17,10 +17,7 @@ import {
 import LeaveStatusChip from "../../../common/components/Admin/LeaveStatusChip";
 import { LEAVE_HISTORY_EMPTY } from "../../../configs/admin/leaves";
 import type { EmployeeLeaveRow } from "../../../models/admin/leaves";
-import {
-  formatDateTime,
-  formatLeavePeriod,
-} from "../../../utils/admin/admin";
+import { formatDateTime, formatLeavePeriod } from "../../../utils/admin/admin";
 import { formatLeaveDays } from "../../../utils/admin/leaves";
 
 type EmployeeLeaveDetailPanelProps = {
@@ -35,13 +32,13 @@ const thinHeadSx = {
   borderBottom: "1px solid",
   borderColor: "divider",
   py: 1.25,
-} as const;
+};
 
 const thinBodySx = {
   borderBottom: "1px solid",
   borderColor: "divider",
   py: 1.5,
-} as const;
+};
 
 const panelFadeSx = {
   animation: "leaveDetailFade 220ms ease",
@@ -49,7 +46,7 @@ const panelFadeSx = {
     from: { opacity: 0.25 },
     to: { opacity: 1 },
   },
-} as const;
+};
 
 const EmployeeLeaveDetailPanel = ({
   target,

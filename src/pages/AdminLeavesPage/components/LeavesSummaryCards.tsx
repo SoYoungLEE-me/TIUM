@@ -14,14 +14,14 @@ const cards = [
     id: "count",
     label: "조회 대상",
     icon: GroupsRoundedIcon,
-    color: "primary" as const,
+    color: "primary",
     getValue: (summary: LeavesPageSummary) => `${summary.employee_count} 명`,
   },
   {
     id: "remaining",
     label: "총 잔여 연차",
     icon: CalendarMonthRoundedIcon,
-    color: "success" as const,
+    color: "success",
     getValue: (summary: LeavesPageSummary) =>
       `${formatLeaveDays(summary.total_remaining_days)} 일`,
   },
@@ -29,7 +29,7 @@ const cards = [
     id: "pending",
     label: "검토 대기",
     icon: AccessTimeRoundedIcon,
-    color: "warning" as const,
+    color: "warning",
     getValue: (summary: LeavesPageSummary) =>
       `${formatLeaveDays(summary.total_pending_days)} 일`,
   },
@@ -58,7 +58,11 @@ const LeavesSummaryCards = ({ summary }: LeavesSummaryCardsProps) => {
             }}
           >
             <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 0.5 }}
+              >
                 {card.label}
               </Typography>
               <Typography variant="h2" sx={{ fontWeight: 700 }}>
