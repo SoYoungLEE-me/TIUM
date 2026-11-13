@@ -5,10 +5,10 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Typography,
 } from "@mui/material";
 import { Link, useLocation } from "react-router";
 import type { MenuItem } from "./menus";
+import tiumLogo from "../../assets/logo/tium-logo-light-text.svg";
 
 const MenuBadge = ({ count }: { count: number }) => (
   <Box
@@ -90,11 +90,20 @@ const Sidebar = ({ menuItems, variant, open, onClose }: SidebarProps) => {
               pt: 0.5,
             }}
           >
-            <Typography
-              sx={{ color: "#FFFFFF", fontWeight: 700, fontSize: 16 }}
+            <Box
+              component={Link}
+              to={menuItems[0]?.path ?? "/"}
+              onClick={isPermanent ? undefined : onClose}
+              aria-label="TIUM 홈"
+              sx={{ display: "flex", alignItems: "center", px: 1, pt: 0.5 }}
             >
-              TIUM
-            </Typography>
+              <Box
+                component="img"
+                src={tiumLogo}
+                alt="TIUM"
+                sx={{ height: 32, width: "auto", display: "block" }}
+              />
+            </Box>
           </Box>
 
           {/* 메뉴 */}

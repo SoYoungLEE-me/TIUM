@@ -15,6 +15,7 @@ import {
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import tiumLogo from "../../assets/logo/tium-logo-dark-text.svg";
 
 interface NavbarProps {
   showMenuButton: boolean;
@@ -57,9 +58,22 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
         sx={{ gap: 1.5, px: { xs: 2, md: 3 }, minHeight: { xs: 64, md: 72 } }}
       >
         {showMenuButton && (
-          <IconButton edge="start" aria-label="메뉴 열기" onClick={onMenuClick}>
-            <MenuRoundedIcon />
-          </IconButton>
+          <>
+            <IconButton
+              edge="start"
+              aria-label="메뉴 열기"
+              onClick={onMenuClick}
+            >
+              <MenuRoundedIcon />
+            </IconButton>
+
+            <Box
+              component="img"
+              src={tiumLogo}
+              alt="TIUM"
+              sx={{ height: 28, width: "auto", display: "block" }}
+            />
+          </>
         )}
 
         <Box sx={{ flex: 1 }} />
