@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import LoadingSpinner from "../common/components/Loading/LoadingSpinner";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from "react-router";
 import Chatbot from "../common/chatbot/Chatbot";
@@ -63,7 +64,10 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
           component="main"
           sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}
         >
-          <Outlet />
+          {/* 페이지만 로딩 — 사이드바, 네비바, 챗봇은 그대로 유지 */}
+          <Suspense fallback={<LoadingSpinner />}>
+            <Outlet />
+          </Suspense>
         </Scroll>
       </Box>
       <Chatbot />
