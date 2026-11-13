@@ -1,10 +1,10 @@
 import type { Page } from "./common";
 import type { Attendance } from "./attendance";
-import type { Employee } from "./employee";
+import type { Employee } from "./employees";
 import type { Balance, LeaveRequest } from "./leave";
 
 export type DecisionInput = {
-  reason: string;
+  reason?: string;
 };
 
 export type GrantInput = {

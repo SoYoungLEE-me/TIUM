@@ -1,6 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { create } from "zustand";
-import { supabase } from "../libs/supabase";
+import { supabase } from "../libs/supabaseClient";
 
 type AuthState = {
   session: Session | null;

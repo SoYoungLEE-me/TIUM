@@ -9,7 +9,6 @@ import {
   applyCompanySettingsUpdate,
   toggleLeaveTypeActive,
   updateApprovalRuleLimits,
-  validateWorkdays,
   validateWorkingHours,
 } from "../../utils/admin/setting";
 
@@ -19,9 +18,7 @@ const isSameCompanySettings = (a: CompanySettings, b: CompanySettings) =>
   a.work_start_time === b.work_start_time &&
   a.work_end_time === b.work_end_time &&
   a.late_threshold === b.late_threshold &&
-  a.auto_approval_enabled === b.auto_approval_enabled &&
-  a.workdays.length === b.workdays.length &&
-  a.workdays.every((day, index) => day === b.workdays[index]);
+  a.auto_approval_enabled === b.auto_approval_enabled;
 
 export const useAdminSettings = () => {
   const [settings, setSettings] = useState<AdminSettingsState>(initialState);
@@ -56,17 +53,9 @@ export const useAdminSettings = () => {
       return;
     }
 
-    const workdaysError = validateWorkdays(draft.workdays);
-    if (workdaysError) {
-      setError(workdaysError);
-      setMessage(null);
-      return;
-    }
-
     const next = applyCompanySettingsUpdate(settings.company_settings, {
       work_start_time: draft.work_start_time,
       work_end_time: draft.work_end_time,
-      workdays: draft.workdays,
       late_threshold: draft.late_threshold,
       auto_approval_enabled: draft.auto_approval_enabled,
     });
@@ -77,12 +66,20 @@ export const useAdminSettings = () => {
     setMessage(null);
   };
 
-  const updateMaxConsecutiveDays = (ruleId: string, days: number) => {
+  const updateApprovalRuleLimitsForRule = (
+    ruleId: string,
+    update: Partial<{
+      min_notice_days: number;
+      max_consecutive_days: number | null;
+    }>,
+  ) => {
     setSettings((prev) => ({
       ...prev,
-      approval_rules: updateApprovalRuleLimits(prev.approval_rules, ruleId, {
-        max_consecutive_days: days,
-      }),
+      approval_rules: updateApprovalRuleLimits(
+        prev.approval_rules,
+        ruleId,
+        update,
+      ),
     }));
   };
 
@@ -102,7 +99,7 @@ export const useAdminSettings = () => {
     updateDraft,
     resetDraft,
     saveCompanySettings,
-    updateMaxConsecutiveDays,
+    updateApprovalRuleLimitsForRule,
     toggleLeaveType,
   };
 };

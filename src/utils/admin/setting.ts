@@ -3,7 +3,6 @@ import type {
   CompanySettings,
   CompanySettingsUpdate,
   LeaveType,
-  Workday,
 } from "../../models/admin/setting";
 
 export type DayPeriod = "am" | "pm";
@@ -55,9 +54,6 @@ export const applyCompanySettingsUpdate = (
 ): CompanySettings => ({
   ...current,
   ...update,
-  workdays: update.workdays
-    ? [...update.workdays].sort((a, b) => a - b)
-    : current.workdays,
   updated_at: new Date().toISOString(),
 });
 
@@ -107,13 +103,6 @@ export const validateWorkingHours = (
 ): string | null => {
   if (end <= start) {
     return "퇴근 시각은 출근 시각보다 이후여야 합니다.";
-  }
-  return null;
-};
-
-export const validateWorkdays = (workdays: Workday[]): string | null => {
-  if (workdays.length === 0) {
-    return "근무 요일을 하나 이상 선택해 주세요.";
   }
   return null;
 };

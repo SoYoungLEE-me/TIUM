@@ -5,10 +5,7 @@
  * - GEMINI_API_KEY
  * - optional SUPABASE_URL / SUPABASE_ANON_KEY (auto-injected on hosted)
  *
- * Public OpenAPI path: POST /api/assistant/messages
- * Reach this function via API gateway proxy (server/assistant-proxy.mjs):
- *   /api/assistant/messages → /functions/v1/assistant-messages
- * Do not call this Edge URL from the frontend; keep OpenAPI path stable.
+ * Invoked from the frontend via supabase.functions.invoke('assistant-messages').
  *
  * TODO: tool loop (leave balance / policy / prepare_leave_request),
  * conversation ownership, rate limits — see hr-assistant.md

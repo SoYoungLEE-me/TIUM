@@ -34,11 +34,6 @@ export type LeaveInput = {
   reason?: string | null;
 };
 
-export type SubmitLeaveRequest = {
-  confirmation_token: string;
-  submission_key: string;
-};
-
 export type SubmittedLeave = {
   id: string;
   status: "approved" | "pending";
@@ -46,10 +41,6 @@ export type SubmittedLeave = {
   total_days: number;
   decision_reason: string;
   message: string;
-};
-
-export type ValidateLeaveResponse = {
-  data: LeavePreview;
 };
 
 export type { LeavePreview, ReasonCode };
