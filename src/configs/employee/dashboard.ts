@@ -4,8 +4,22 @@ export const DASHBOARD_TITLE = "대시보드";
 
 export const DASHBOARD_RECENT_REQUEST_COUNT = 3;
 
-// TODO: Supabase 연결 후 company_settings의 work_start_time / work_end_time으로 교체
-export const DASHBOARD_WORK_HOURS_LABEL = "기본 근무 09:00 – 18:00";
+export const DASHBOARD_LOAD_ERROR =
+  "대시보드를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
+
+export const CHECK_IN_SUCCESS = "출근이 기록됐어요.";
+export const CHECK_OUT_SUCCESS = "퇴근이 기록됐어요.";
+export const CHECK_IN_FAILED = "출근 기록에 실패했어요.";
+export const CHECK_OUT_FAILED = "퇴근 기록에 실패했어요.";
+
+/*출퇴근  RPC 에러 코드 → 안내 문구 */
+export const ATTENDANCE_ERROR_MESSAGE: Record<string, string> = {
+  ALREADY_CHECKED_IN: "이미 출근이 기록됐어요.",
+  CHECK_IN_REQUIRED: "출근 기록이 없어서 퇴근할 수 없어요.",
+  ALREADY_CHECKED_OUT: "이미 퇴근이 기록됐어요.",
+  SETTINGS_NOT_FOUND: "회사 근무 설정이 없어요. 인사 담당자에게 문의해 주세요.",
+  UNAUTHORIZED: "로그인이 필요해요.",
+};
 
 export const WORK_STATUS_CHIP: Record<
   WorkStatus,

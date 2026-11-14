@@ -1,5 +1,4 @@
-import { Box, Button, Container, Stack, Typography } from "@mui/material";
-import { Link } from "react-router";
+import { Box, Container, Typography } from "@mui/material";
 import { LANDING_HERO } from "../../../configs/landing/landing";
 import LandingDemo from "./LandingDemo";
 
@@ -13,7 +12,7 @@ const LandingHero = () => (
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 340px" },
+        gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 520px" },
         alignItems: "end",
         gap: { xs: 3, md: 6 },
       }}
@@ -34,34 +33,20 @@ const LandingHero = () => (
         {LANDING_HERO.title[1]}
       </Typography>
 
-      <Stack spacing={2.5} sx={{ pb: { md: 1.5 } }}>
-        <Typography
-          sx={{
-            fontSize: { xs: 16, md: 17 },
-            lineHeight: 1.7,
-            color: "text.secondary",
-          }}
-        >
-          {LANDING_HERO.description}
-        </Typography>
-        <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-          <Button component={Link} to="/login" variant="contained" size="large">
-            로그인
-          </Button>
-          <Typography
-            component={Link}
-            to="/signup"
-            sx={{
-              fontSize: 15,
-              fontWeight: 600,
-              color: "text.secondary",
-              textUnderlineOffset: "4px",
-            }}
-          >
-            처음이라면 회원가입
-          </Typography>
-        </Stack>
-      </Stack>
+      <Typography
+        sx={{
+          pb: { md: 3 },
+          fontSize: { xs: 17, md: 20 },
+          lineHeight: 1.6,
+          color: "text.secondary",
+        }}
+      >
+        {LANDING_HERO.description.map((line) => (
+          <Box component="span" key={line} sx={{ display: "block" }}>
+            {line}
+          </Box>
+        ))}
+      </Typography>
     </Box>
 
     <LandingDemo />

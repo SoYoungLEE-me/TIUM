@@ -4,10 +4,17 @@ export const ATTENDANCE_TITLE = "근태 관리";
 export const ATTENDANCE_DESCRIPTION =
   "승인된 연차는 캘린더에 자동으로 표시돼요.";
 
-/** 월요일 시작 */
+export const ATTENDANCE_LOAD_ERROR =
+  "근태 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
+
+/* 회사 설정을 못 불러왔을 때 쓰는 기본 근무 시간 */
+export const DEFAULT_WORK_START_TIME = "09:00";
+export const DEFAULT_WORK_END_TIME = "18:00";
+
+/* 월요일 시작 */
 export const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
-/** 캘린더 칸 색 · 라벨 */
+/* 캘린더 칸 색 · 라벨 */
 export const DAY_STATUS_STYLE: Record<
   DayStatus,
   { label: string; bg: string; border: string; fg: string }
@@ -25,7 +32,7 @@ export const DAY_STATUS_STYLE: Record<
   none: { label: "", bg: "#FFFFFF", border: "#ECE7DE", fg: "#6E6670" },
 };
 
-/** 범례에 보여 줄 상태 */
+/* 범례에 보여 줄 상태 */
 export const LEGEND_STATUSES: DayStatus[] = [
   "present",
   "late",

@@ -1,11 +1,13 @@
-import { Box, Chip, Typography } from "@mui/material";
+import { Alert, Box, Chip, Typography } from "@mui/material";
 import {
+  DASHBOARD_LOAD_ERROR,
   DASHBOARD_TITLE,
   WORK_STATUS_CHIP,
 } from "../../configs/employee/dashboard";
 import { useEmployeeDashboard } from "../../hooks/employee/dashboard";
 import { formatTodayLabel } from "../../utils/employee/dashboard";
 import AttendanceCard from "./components/AttendanceCard";
+import DashboardSkeleton from "./components/DashboardSkeleton";
 import LeaveSummaryCard from "./components/LeaveSummaryCard";
 import RecentLeaveRequests from "./components/RecentLeaveRequests";
 
@@ -15,11 +17,23 @@ const DashboardPage = () => {
     checkOut,
     isLate,
     workStatus,
+    workHoursLabel,
     balance,
     recentRequests,
+    processing,
+    isLoading,
+    isError,
     checkInNow,
     checkOutNow,
   } = useEmployeeDashboard();
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (isError || !balance) {
+    return <Alert severity="error">{DASHBOARD_LOAD_ERROR}</Alert>;
+  }
 
   const statusChip = WORK_STATUS_CHIP[workStatus];
 
@@ -66,6 +80,8 @@ const DashboardPage = () => {
           checkIn={checkIn}
           checkOut={checkOut}
           isLate={isLate}
+          workHoursLabel={workHoursLabel}
+          processing={processing}
           onCheckIn={checkInNow}
           onCheckOut={checkOutNow}
         />
