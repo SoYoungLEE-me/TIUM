@@ -24,6 +24,12 @@ const AdminLeavesPage = React.lazy(
 const AdminSettingsPage = React.lazy(
   () => import("../pages/AdminSettingsPage/AdminSettingsPage")
 );
+const AdminInquiriesPage = React.lazy(
+  () => import("../pages/AdminInquiriesPage/AdminInquiriesPage")
+);
+const InquiriesPage = React.lazy(
+  () => import("../pages/InquiriesPage/InquiriesPage")
+);
 const NotFoundPage = React.lazy(
   () => import("../pages/NotFoundPage/NotFoundPage")
 );
@@ -45,6 +51,7 @@ const AppRouter = () => {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="leaves" element={<LeavesPage />} />
+            <Route path="inquiries" element={<InquiriesPage />} />
           </Route>
         </Route>
 
@@ -55,6 +62,7 @@ const AppRouter = () => {
         >
           <Route element={<AppLayout variant="admin" />}>
             <Route index element={<AdminPage />} />
+            <Route path="inquiries" element={<AdminInquiriesPage />} />
             <Route path="leaves" element={<AdminLeavesPage />} />
             <Route path="settings" element={<AdminSettingsPage />} />
           </Route>

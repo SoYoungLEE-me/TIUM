@@ -1,4 +1,7 @@
 import { Navigate, Outlet } from "react-router";
+import LoadingSpinner from "../common/components/Loading/LoadingSpinner";
+import { useMe } from "../hooks/apis/useMe";
+import { useAuthStore } from "../stores/authStore";
 
 type Role = "employee" | "hr_admin";
 
@@ -6,21 +9,27 @@ interface PrivateRouteProps {
   permissionLevel: Role;
 }
 
-// TODO: Supabase 연결 후 실제 인증 상태로 교체
-// TODO: 로그인 연동 후 useMe/authStore role로 교체 (Admin 확인용 임시)
-const user: { role: Role } | null = { role: "hr_admin" };
-
 const PrivateRoute = ({ permissionLevel }: PrivateRouteProps) => {
-  if (!user) {
+  const session = useAuthStore((s) => s.session);
+  const initialized = useAuthStore((s) => s.initialized);
+  const meQuery = useMe();
+
+  if (!initialized || (session && meQuery.isLoading)) {
+    return <LoadingSpinner />;
+  }
+
+  if (!session) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user.role !== permissionLevel) {
+  if (meQuery.isError || !meQuery.data) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = meQuery.data.role;
+  if (role !== permissionLevel) {
     return (
-      <Navigate
-        to={user.role === "hr_admin" ? "/admin" : "/dashboard"}
-        replace
-      />
+      <Navigate to={role === "hr_admin" ? "/admin" : "/dashboard"} replace />
     );
   }
 

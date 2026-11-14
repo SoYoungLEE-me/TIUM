@@ -4,6 +4,7 @@ import {
   getLeaveRequest,
   getMyLeaveRequests,
   submitLeave,
+  submitLeaveFromToken,
 } from "../../apis/leaves";
 import type { LeaveInput } from "../../models/apis/leave";
 import { queryKeys } from "./queryKeys";
@@ -36,6 +37,21 @@ export const useSubmitLeave = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: LeaveInput) => submitLeave(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
+      void queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+};
+
+export const useSubmitLeaveFromToken = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      confirmation_token: string;
+      submission_key: string;
+    }) => submitLeaveFromToken(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
       void queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });

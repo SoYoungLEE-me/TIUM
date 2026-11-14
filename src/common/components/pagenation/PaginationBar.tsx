@@ -22,14 +22,11 @@ const PaginationBar = ({
         px: 2.5,
         py: 1.75,
         alignItems: "center",
-        justifyContent: { xs: "center", sm: "space-between" },
+        justifyContent: "center",
+        flexWrap: "wrap",
       }}
     >
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        sx={{ display: { xs: "none", sm: "block" } }}
-      >
+      <Typography variant="body2" color="text.secondary">
         {note}
       </Typography>
       <Pagination

@@ -16,6 +16,7 @@ type ChatPanelProps = {
   greeting: string;
   quickActions: QuickAction[];
   showQuickActions: boolean;
+  followUpActions?: QuickAction[];
   messages: ChatMessage[];
   placeholder: string;
   hint: string;
@@ -23,6 +24,7 @@ type ChatPanelProps = {
   submittingMessageId: string | null;
   onClose: () => void;
   onEndConversation: () => void;
+  onInquiry?: () => void;
   onSend: (message: string) => void;
   onQuickAction: (trigger: string) => void;
   onClarificationSelect: (label: string) => void;
@@ -39,6 +41,7 @@ const ChatPanel = forwardRef<HTMLDivElement, ChatPanelProps>(
       greeting,
       quickActions,
       showQuickActions,
+      followUpActions = [],
       messages,
       placeholder,
       hint,
@@ -46,6 +49,7 @@ const ChatPanel = forwardRef<HTMLDivElement, ChatPanelProps>(
       submittingMessageId,
       onClose,
       onEndConversation,
+      onInquiry,
       onSend,
       onQuickAction,
       onClarificationSelect,
@@ -87,13 +91,19 @@ const ChatPanel = forwardRef<HTMLDivElement, ChatPanelProps>(
           title={title}
           subtitle={subtitle}
           onClose={onClose}
-          onEndConversation={onEndConversation}
+          headerAction={messages.length === 0 ? "inquiry" : "end"}
+          onHeaderAction={
+            messages.length === 0
+              ? onInquiry
+              : onEndConversation
+          }
         />
         <MessageList
           messages={messages}
           greeting={greeting}
           quickActions={quickActions}
           showQuickActions={showQuickActions}
+          followUpActions={followUpActions}
           loading={loading}
           submittingMessageId={submittingMessageId}
           onQuickAction={onQuickAction}

@@ -5,6 +5,9 @@ import { Outlet } from "react-router";
 import Chatbot from "../common/chatbot/Chatbot";
 import Scroll from "../common/scroll/scroll";
 import { useAdminLeaves } from "../hooks/apis/useAdminLeaves";
+import { useQuery } from "@tanstack/react-query";
+import { countUnreadInquiries } from "../apis/inquiries";
+import { queryKeys } from "../hooks/apis/queryKeys";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 
@@ -21,17 +24,43 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const pendingLeavesQuery = useAdminLeaves(
-    { status: "pending", page_size: 100 },
+    { status: "pending", page: 1, page_size: 1 },
     { enabled: variant === "admin" },
   );
 
-  const adminMenuItems = useMemo(() => {
-    const pendingCount = pendingLeavesQuery.data?.data.length ?? 0;
+  const inquiryUnreadQuery = useQuery({
+    queryKey: queryKeys.inquiryUnread(variant),
+    queryFn: () =>
+      countUnreadInquiries(variant === "admin" ? "hr_admin" : "employee"),
+    refetchInterval: 30_000,
+  });
 
-    return ADMIN_MENU.map((item) =>
-      item.path === "/admin" ? { ...item, badge: pendingCount } : item,
+  const adminMenuItems = useMemo(() => {
+    const pendingCount =
+      pendingLeavesQuery.data?.pagination.total ??
+      pendingLeavesQuery.data?.data.length ??
+      0;
+    const inquiryCount = inquiryUnreadQuery.data ?? 0;
+
+    return ADMIN_MENU.map((item) => {
+      if (item.path === "/admin") {
+        return { ...item, badge: pendingCount || undefined };
+      }
+      if (item.path === "/admin/inquiries") {
+        return { ...item, badge: inquiryCount || undefined };
+      }
+      return item;
+    });
+  }, [pendingLeavesQuery.data, inquiryUnreadQuery.data]);
+
+  const employeeMenuItems = useMemo(() => {
+    const inquiryCount = inquiryUnreadQuery.data ?? 0;
+    return EMPLOYEE_MENU.map((item) =>
+      item.path === "/inquiries"
+        ? { ...item, badge: inquiryCount || undefined }
+        : item,
     );
-  }, [pendingLeavesQuery.data]);
+  }, [inquiryUnreadQuery.data]);
 
   return (
     <Box
@@ -43,7 +72,7 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
       }}
     >
       <Sidebar
-        menuItems={variant === "admin" ? adminMenuItems : EMPLOYEE_MENU}
+        menuItems={variant === "admin" ? adminMenuItems : employeeMenuItems}
         variant={isDesktop ? "permanent" : "temporary"}
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -61,12 +90,12 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
         <Navbar
           showMenuButton={!isDesktop}
           onMenuClick={() => setMobileOpen(true)}
+          variant={variant}
         />
         <Scroll
           component="main"
           sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}
         >
-          {/* 페이지만 로딩 — 사이드바, 네비바, 챗봇은 그대로 유지 */}
           <Suspense fallback={<LoadingSpinner />}>
             <Outlet />
           </Suspense>

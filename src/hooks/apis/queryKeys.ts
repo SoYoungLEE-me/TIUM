@@ -24,4 +24,8 @@ export const queryKeys = {
     year,
   ],
   adminSettings: ["adminSettings"],
+  inquiryUnread: (variant: string) => ["inquiryUnread", variant],
+  inquiryThreads: (scope: string) => ["inquiryThreads", scope],
+  inquiryMessages: (threadId: string) => ["inquiryMessages", threadId],
+  notifications: (variant: string) => ["notifications", variant],
 };

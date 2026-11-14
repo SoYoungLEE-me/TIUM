@@ -19,6 +19,8 @@ type MessageListProps = {
   greeting: string;
   quickActions: QuickAction[];
   showQuickActions: boolean;
+  /** 마지막 어시스턴트 메시지 아래에 붙는 뱃지 (예: 관리자 문의) */
+  followUpActions?: QuickAction[];
   loading: boolean;
   submittingMessageId: string | null;
   onQuickAction: (trigger: string) => void;
@@ -32,6 +34,7 @@ const MessageList = ({
   greeting,
   quickActions,
   showQuickActions,
+  followUpActions = [],
   loading,
   submittingMessageId,
   onQuickAction,
@@ -43,9 +46,16 @@ const MessageList = ({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, showQuickActions, loading, submittingMessageId]);
+  }, [messages, showQuickActions, followUpActions, loading, submittingMessageId]);
 
-  const renderAssistantExtras = (message: AssistantChatMessage) => {
+  const lastAssistantId = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant")?.id;
+
+  const renderAssistantExtras = (
+    message: AssistantChatMessage,
+    isLastAssistant: boolean,
+  ) => {
     const { response } = message;
 
     if (response.type === "clarification") {
@@ -68,6 +78,21 @@ const MessageList = ({
           disabled={loading}
           onEdit={() => onEditLeave(message.id)}
           onSubmit={() => onSubmitLeave(message.id, response.payload)}
+        />
+      );
+    }
+
+    if (
+      isLastAssistant &&
+      !loading &&
+      followUpActions.length > 0 &&
+      (response.type === "answer" || response.type === "blocked")
+    ) {
+      return (
+        <QuickActions
+          actions={followUpActions}
+          onSelect={onQuickAction}
+          inset={false}
         />
       );
     }
@@ -96,9 +121,10 @@ const MessageList = ({
           return <UserMessage key={message.id} text={message.text} />;
         }
 
+        const isLastAssistant = message.id === lastAssistantId;
         return (
           <AssistantMessage key={message.id} message={message.response.message}>
-            {renderAssistantExtras(message)}
+            {renderAssistantExtras(message, isLastAssistant)}
           </AssistantMessage>
         );
       })}

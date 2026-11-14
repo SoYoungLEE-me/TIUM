@@ -18,6 +18,7 @@ const ToastHost = () => {
 
   return (
     <Box
+      data-toast-host
       sx={{
         position: "fixed",
         left: MAIN_OFFSET_LEFT,
