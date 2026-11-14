@@ -37,7 +37,7 @@ export const LEAVES_CONCEPT_CARDS = [
 ];
 
 export const LEAVE_HISTORY_EMPTY =
-  "기존 예시 잔액만 등록되어 있습니다. 부여·조정 이력이 쌓이면 여기에 표시됩니다.";
+  "변동 이력이 없습니다. 부여·승인(차감)이 발생하면 여기에 표시됩니다.";
 
 export const GRANT_DIALOG_TITLE = "직원 연차 부여";
 export const GRANT_DIALOG_DESCRIPTION =

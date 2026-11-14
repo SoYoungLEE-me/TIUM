@@ -41,14 +41,6 @@ const thinBodySx = {
   py: 1.5,
 };
 
-const panelFadeSx = {
-  animation: "leaveDetailFade 220ms ease",
-  "@keyframes leaveDetailFade": {
-    from: { opacity: 0.25 },
-    to: { opacity: 1 },
-  },
-};
-
 const EmployeeLeaveDetailPanel = ({
   target,
   onClose,
@@ -65,7 +57,6 @@ const EmployeeLeaveDetailPanel = ({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        ...panelFadeSx,
       }}
     >
       <Stack
@@ -228,7 +219,8 @@ const EmployeeLeaveDetailPanel = ({
                 <TableRow key={item.id}>
                   <TableCell sx={thinBodySx}>{item.category}</TableCell>
                   <TableCell align="right" sx={thinBodySx}>
-                    +{formatLeaveDays(item.change_days)}
+                    {item.change_days > 0 ? "+" : ""}
+                    {formatLeaveDays(item.change_days)}
                   </TableCell>
                   <TableCell sx={thinBodySx}>{item.reason}</TableCell>
                   <TableCell sx={thinBodySx}>

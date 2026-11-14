@@ -5,6 +5,7 @@ import {
 } from "../../configs/admin/leaves";
 import {
   useAdminEmployeeBalances,
+  useAdminEmployeeLeaveDetail,
   useGrantLeave,
 } from "../apis/useAdminEmployees";
 import type {
@@ -62,10 +63,10 @@ export const useAdminEmployeeLeaves = () => {
             available_days: item.balance.available_days,
           }
         : buildLeaveBalanceSnapshot(filter.year, 0, 0, 0),
-      requests: [],
-      history: [],
     }));
   }, [balancesQuery.data, filter.year]);
+
+  const detailQuery = useAdminEmployeeLeaveDetail(detailTargetId, filter.year);
 
   const departments = useMemo(() => getEmployeeDepartments(rows), [rows]);
 
@@ -91,8 +92,15 @@ export const useAdminEmployeeLeaves = () => {
 
   const grantTarget =
     rows.find((row) => row.employee.id === grantTargetId) ?? null;
-  const detailTarget =
-    rows.find((row) => row.employee.id === detailTargetId) ?? null;
+  const detailTarget = useMemo(() => {
+    const base = rows.find((row) => row.employee.id === detailTargetId);
+    if (!base) return null;
+    return {
+      ...base,
+      requests: detailQuery.data?.requests ?? [],
+      history: detailQuery.data?.history ?? [],
+    };
+  }, [rows, detailTargetId, detailQuery.data]);
 
   const setYear = (year: number) => {
     setFilter((prev) => ({ ...prev, year }));

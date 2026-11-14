@@ -12,6 +12,7 @@ import {
   TextField,
 } from "@mui/material";
 import AdminSectionHeader from "../../common/components/Admin/AdminSectionHeader";
+import AnimatedDetailSplit from "../../common/components/Admin/AnimatedDetailSplit";
 import DepartmentSelect from "../../common/components/dropbox/DepartmentSelect";
 import {
   ADMIN_LEAVES_DESCRIPTION,
@@ -87,12 +88,9 @@ const AdminLeavesPage = () => {
 
       <LeavesSummaryCards summary={summary} />
 
-      <Stack
-        direction={{ xs: "column", lg: "row" }}
-        spacing={2}
-        sx={{ alignItems: "stretch", minHeight: { lg: 640 } }}
-      >
-        <Box sx={{ flex: 1.55, minWidth: 0 }}>
+      <AnimatedDetailSplit
+        detailAnchorId={ADMIN_LEAVES_DETAIL_ANCHOR_ID}
+        main={
           <EmployeeLeaveTable
             rows={pagedRows}
             totalCount={filteredRows.length}
@@ -150,27 +148,18 @@ const AdminLeavesPage = () => {
               </Stack>
             }
           />
-        </Box>
-
-        {detailTarget ? (
-          <Box
-            id={ADMIN_LEAVES_DETAIL_ANCHOR_ID}
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              maxWidth: { lg: 420 },
-              scrollMarginTop: 16,
-            }}
-          >
+        }
+        detail={
+          detailTarget ? (
             <EmployeeLeaveDetailPanel
-              key={`${detailTarget.employee.id}-${detailTarget.balance.available_days}-${detailTarget.balance.pending_days}`}
+              key={detailTarget.employee.id}
               target={detailTarget}
               onClose={closeDetailDialog}
               onGrant={openGrantDialog}
             />
-          </Box>
-        ) : null}
-      </Stack>
+          ) : null
+        }
+      />
 
       <LeavesInfoSection />
 

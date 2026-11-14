@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ADMIN_REVIEW_PAGE_SIZE,
   DEFAULT_ADMIN_LEAVE_STATUS,
@@ -41,10 +41,11 @@ const toSnapshot = (balance: Balance): LeaveBalanceSnapshot => ({
 
 const mapListItem = (
   item: AdminLeaveListItem,
-  balance?: LeaveBalanceSnapshot
+  balance?: LeaveBalanceSnapshot,
 ): AdminLeaveRequest => {
   const { request, employee } = item;
-  const year = Number(request.start_date.slice(0, 4)) || new Date().getFullYear();
+  const year =
+    Number(request.start_date.slice(0, 4)) || new Date().getFullYear();
   return {
     id: request.id,
     employee_id: request.employee_id,
@@ -80,48 +81,29 @@ export const useAdminLeaveReview = () => {
 
   // status/department/search는 클라이언트에서만 필터 — 요약·탭 카운트가 항상 전체 기준
   const leavesQuery = useAdminLeaves({ page_size: 100 });
-  const detailQuery = useAdminLeave(selectedId ?? "", Boolean(selectedId));
   const approveMutation = useApproveAdminLeave();
   const rejectMutation = useRejectAdminLeave();
 
   const requests = useMemo(() => {
     const items = leavesQuery.data?.data ?? [];
-    return items.map((item) => {
-      const mapped = mapListItem(item);
-      if (
-        selectedId &&
-        item.request.id === selectedId &&
-        detailQuery.data?.balance
-      ) {
-        return {
-          ...mapped,
-          ...mapListItem(item, toSnapshot(detailQuery.data.balance)),
-          status: detailQuery.data.request.status,
-          decision_reason: detailQuery.data.request.decision_reason,
-          reviewed_by: detailQuery.data.request.reviewed_by,
-          reviewed_at: detailQuery.data.request.reviewed_at,
-          approval_type: detailQuery.data.request.approval_type,
-        };
-      }
-      return mapped;
-    });
-  }, [leavesQuery.data, selectedId, detailQuery.data]);
+    return items.map((item) => mapListItem(item));
+  }, [leavesQuery.data]);
 
   const summary = useMemo(() => buildAdminReviewSummary(requests), [requests]);
   const statusCounts = useMemo(
     () => buildAdminStatusCounts(requests),
-    [requests]
+    [requests],
   );
   const departments = useMemo(() => getDepartmentOptions(requests), [requests]);
 
   const filteredRequests = useMemo(
     () => filterAdminLeaveRequests(requests, filter),
-    [requests, filter]
+    [requests, filter],
   );
 
   const pageCount = Math.max(
     1,
-    Math.ceil(filteredRequests.length / ADMIN_REVIEW_PAGE_SIZE)
+    Math.ceil(filteredRequests.length / ADMIN_REVIEW_PAGE_SIZE),
   );
   const safePage = Math.min(page, pageCount);
   const pagedRequests = useMemo(() => {
@@ -129,64 +111,82 @@ export const useAdminLeaveReview = () => {
     return filteredRequests.slice(start, start + ADMIN_REVIEW_PAGE_SIZE);
   }, [filteredRequests, safePage]);
 
-  // 목록 맨 위 항목을 기본 선택. 필터 결과 없으면 선택 해제
-  useEffect(() => {
-    if (filteredRequests.length === 0) {
-      if (selectedId !== null) {
-        setSelectedId(null);
-        setActionError(null);
-        setActionMessage(null);
-      }
-      return;
+  // 목록 맨 위 항목을 기본 선택. 필터 결과 없으면 선택 해제 (effect 없이 파생)
+  const resolvedSelectedId = useMemo(() => {
+    if (filteredRequests.length === 0) return null;
+    if (
+      selectedId &&
+      filteredRequests.some((request) => request.id === selectedId)
+    ) {
+      return selectedId;
     }
-
-    const stillVisible = filteredRequests.some(
-      (request) => request.id === selectedId
-    );
-    if (!stillVisible) {
-      setSelectedId(filteredRequests[0].id);
-      setActionError(null);
-      setActionMessage(null);
-    }
+    return filteredRequests[0].id;
   }, [filteredRequests, selectedId]);
 
-  const selectedRequest =
-    filteredRequests.find((request) => request.id === selectedId) ?? null;
+  const detailQuery = useAdminLeave(
+    resolvedSelectedId ?? "",
+    Boolean(resolvedSelectedId),
+  );
+
+  const selectedRequest = useMemo(() => {
+    const base =
+      filteredRequests.find((request) => request.id === resolvedSelectedId) ??
+      null;
+    if (!base || !detailQuery.data) return base;
+    return {
+      ...base,
+      balance: detailQuery.data.balance
+        ? toSnapshot(detailQuery.data.balance)
+        : base.balance,
+      status: detailQuery.data.request.status,
+      decision_reason: detailQuery.data.request.decision_reason,
+      reviewed_by: detailQuery.data.request.reviewed_by,
+      reviewed_at: detailQuery.data.request.reviewed_at,
+      approval_type: detailQuery.data.request.approval_type,
+    };
+  }, [filteredRequests, resolvedSelectedId, detailQuery.data]);
 
   const selectedIndex = selectedRequest
-    ? filteredRequests.findIndex(
-        (request) => request.id === selectedRequest.id
-      )
+    ? filteredRequests.findIndex((request) => request.id === selectedRequest.id)
     : -1;
+
+  const clearActionFeedback = () => {
+    setActionError(null);
+    setActionMessage(null);
+  };
 
   const setStatusFilter = (status: AdminLeaveFilter["status"]) => {
     setFilter((prev) => ({ ...prev, status }));
     setPage(1);
+    clearActionFeedback();
   };
 
   const setSearch = (search: string) => {
     setFilter((prev) => ({ ...prev, search }));
     setPage(1);
+    clearActionFeedback();
   };
 
   const setDepartment = (department: string) => {
     setFilter((prev) => ({ ...prev, department }));
     setPage(1);
+    clearActionFeedback();
   };
 
   const selectRequest = (id: string) => {
     setSelectedId(id);
-    setActionError(null);
-    setActionMessage(null);
+    clearActionFeedback();
   };
 
-  const approveRequest = async (_reason: string) => {
+  const approveRequest = async (reason: string) => {
+    console.log(reason);
+
     if (!selectedRequest || selectedRequest.status !== "pending") return;
 
     if (
       !canApproveExcludingSelfPending(
         selectedRequest.balance,
-        selectedRequest.total_days
+        selectedRequest.total_days,
       )
     ) {
       const msg = "잔여 연차가 부족하여 승인할 수 없습니다.";
@@ -195,11 +195,9 @@ export const useAdminLeaveReview = () => {
       return;
     }
 
-    setActionError(null);
-    setActionMessage(null);
+    clearActionFeedback();
     try {
       await approveMutation.mutateAsync(selectedRequest.id);
-      setActionMessage(null);
       toast.success("승인 처리되었습니다.");
       void leavesQuery.refetch();
       void detailQuery.refetch();
@@ -225,14 +223,12 @@ export const useAdminLeaveReview = () => {
       return;
     }
 
-    setActionError(null);
-    setActionMessage(null);
+    clearActionFeedback();
     try {
       await rejectMutation.mutateAsync({
         requestId: selectedRequest.id,
         body: { reason: trimmed },
       });
-      setActionMessage(null);
       toast.success("반려 처리되었습니다.");
       void leavesQuery.refetch();
       void detailQuery.refetch();
