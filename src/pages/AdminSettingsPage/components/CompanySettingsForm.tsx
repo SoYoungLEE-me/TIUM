@@ -6,17 +6,19 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { CompanySettings } from "../../../models/admin/setting";
+import type {
+  CompanySettings,
+  CompanySettingsUpdate,
+} from "../../../models/admin/setting";
 import ThemedTimeField from "./ThemedTimeField";
-import WorkdaysSelector from "./WorkdaysSelector";
 
 type CompanySettingsFormProps = {
-  draft: CompanySettings;
-  onChange: (update: Partial<CompanySettings>) => void;
+  settings: CompanySettings;
+  onChange: (update: CompanySettingsUpdate) => void;
 };
 
 const CompanySettingsForm = ({
-  draft,
+  settings,
   onChange,
 }: CompanySettingsFormProps) => {
   return (
@@ -41,10 +43,13 @@ const CompanySettingsForm = ({
           }}
           control={
             <Switch
-              checked={draft.auto_approval_enabled}
+              checked={settings.auto_approval_enabled}
               onChange={(e) =>
                 onChange({ auto_approval_enabled: e.target.checked })
               }
+              slotProps={{
+                input: { "aria-label": "자동 승인 활성화" },
+              }}
             />
           }
           label="자동 승인 활성화"
@@ -55,12 +60,12 @@ const CompanySettingsForm = ({
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <ThemedTimeField
             label="출근 시각"
-            value={draft.work_start_time}
+            value={settings.work_start_time}
             onChange={(work_start_time) => onChange({ work_start_time })}
           />
           <ThemedTimeField
             label="퇴근 시각"
-            value={draft.work_end_time}
+            value={settings.work_end_time}
             onChange={(work_end_time) => onChange({ work_end_time })}
           />
         </Stack>
@@ -68,7 +73,7 @@ const CompanySettingsForm = ({
         <TextField
           label="지각 기준(분)"
           type="number"
-          value={draft.late_threshold}
+          value={settings.late_threshold}
           onChange={(e) =>
             onChange({
               late_threshold: Math.max(0, Number(e.target.value) || 0),
@@ -76,11 +81,6 @@ const CompanySettingsForm = ({
           }
           slotProps={{ htmlInput: { min: 0 } }}
           fullWidth
-        />
-
-        <WorkdaysSelector
-          value={draft.workdays}
-          onChange={(workdays) => onChange({ workdays })}
         />
       </Stack>
     </Paper>

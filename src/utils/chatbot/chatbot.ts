@@ -35,7 +35,7 @@ export const findScenario = (
   if (trimmed.includes("부족")) {
     return mock.scenarios["연차 부족"].data;
   }
-  if (trimmed.includes("반차") || trimmed.includes("신청")) {
+  if (trimmed.includes("신청")) {
     return mock.scenarios["반차 신청"].data;
   }
 
@@ -43,7 +43,7 @@ export const findScenario = (
     conversation_id: DEFAULT_CONVERSATION_ID,
     type: "answer",
     message:
-      "연차 조회·규정 안내·휴가 신청을 도와드릴 수 있어요. 예: “잔여 연차 확인”, “금요일 오전 반차 신청해 줘”",
+      "연차 조회·규정 안내·휴가 신청을 도와드릴 수 있어요. 예: “잔여 연차 확인”, “연차 신청해 줘”",
     payload: {},
   };
 };

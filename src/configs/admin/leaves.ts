@@ -6,11 +6,11 @@ export const ADMIN_LEAVES_DESCRIPTION =
 
 export const DEFAULT_LEAVE_YEAR = 2026;
 
-export const GRANT_DAY_STEP = 0.5;
-export const GRANT_DAY_MIN = 0.5;
+export const GRANT_DAY_STEP = 1;
+export const GRANT_DAY_MIN = 1;
 export const GRANT_DAY_MAX = 30;
 
-export const LEAVES_TABLE_UNIT_NOTE = "단위: 일 · 0.5일 단위로 관리합니다.";
+export const LEAVES_TABLE_UNIT_NOTE = "단위: 일 · 1일 단위로 관리합니다.";
 
 export const LEAVES_PENDING_INFO =
   "검토 대기 연차는 아직 차감되지 않습니다. 잔여 연차는 유지되며, 신청 가능 연차에서만 제외됩니다. 승인되면 사용 연차로 전환됩니다.";
@@ -37,7 +37,7 @@ export const LEAVES_CONCEPT_CARDS = [
 ];
 
 export const LEAVE_HISTORY_EMPTY =
-  "기존 예시 잔액만 등록되어 있습니다. 부여·조정 이력이 쌓이면 여기에 표시됩니다.";
+  "변동 이력이 없습니다. 부여·승인(차감)이 발생하면 여기에 표시됩니다.";
 
 export const GRANT_DIALOG_TITLE = "직원 연차 부여";
 export const GRANT_DIALOG_DESCRIPTION =

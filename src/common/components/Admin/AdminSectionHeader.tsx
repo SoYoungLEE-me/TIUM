@@ -13,30 +13,25 @@ const AdminSectionHeader = ({
   action,
 }: AdminSectionHeaderProps) => {
   return (
-    <Stack
-      direction={{ xs: "column", sm: "row" }}
-      spacing={2}
-      sx={{
-        mb: 2.5,
-        alignItems: { xs: "stretch", sm: "flex-start" },
-        justifyContent: "space-between",
-      }}
-    >
-      <Box sx={{ minWidth: 0 }}>
-        <Typography
-          variant="h1"
-          component="h1"
-          sx={{ mb: description ? 0.75 : 0 }}
-        >
+    <Stack spacing={0.75} sx={{ mb: 2.5 }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Typography variant="h1" component="h1" sx={{ minWidth: 0 }}>
           {title}
         </Typography>
-        {description ? (
-          <Typography variant="body1" color="text.secondary">
-            {description}
-          </Typography>
-        ) : null}
-      </Box>
-      {action ? <Box sx={{ flexShrink: 0 }}>{action}</Box> : null}
+        {action ? <Box sx={{ flexShrink: 0 }}>{action}</Box> : null}
+      </Stack>
+      {description ? (
+        <Typography variant="body1" color="text.secondary">
+          {description}
+        </Typography>
+      ) : null}
     </Stack>
   );
 };

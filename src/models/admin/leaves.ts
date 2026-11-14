@@ -1,7 +1,4 @@
-import type {
-  LeaveBalanceSnapshot,
-  LeaveRequestStatus,
-} from "./admin";
+import type { LeaveBalanceSnapshot, LeaveRequestStatus } from "./admin";
 
 export type EmployeeRole = "employee" | "hr_admin";
 

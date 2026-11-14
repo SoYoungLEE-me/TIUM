@@ -3,7 +3,6 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { useState } from "react";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Divider,
@@ -12,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import EmployeeProfile from "../../../common/components/profile/EmployeeProfile";
 import LeaveStatusChip from "../../../common/components/Admin/LeaveStatusChip";
 import type { AdminLeaveRequest } from "../../../models/admin/admin";
 import {
@@ -19,16 +19,13 @@ import {
   formatDisplayDate,
   formatFullDateTime,
   formatRequestCode,
-  getAvatarColor,
-  getInitials,
 } from "../../../utils/admin/admin";
 
 type RequestReviewActionsProps = {
-  request: AdminLeaveRequest | null;
+  request: AdminLeaveRequest;
   selectedIndex: number;
   processing: boolean;
   actionError: string | null;
-  actionMessage: string | null;
   onApprove: (reason: string) => void;
   onReject: (reason: string) => void;
 };
@@ -53,32 +50,10 @@ const RequestReviewActions = ({
   selectedIndex,
   processing,
   actionError,
-  actionMessage,
   onApprove,
   onReject,
 }: RequestReviewActionsProps) => {
   const [reason, setReason] = useState("");
-
-  if (!request) {
-    return (
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 3,
-          height: "100%",
-          animation: "reviewPanelFade 220ms ease",
-          "@keyframes reviewPanelFade": {
-            from: { opacity: 0.25 },
-            to: { opacity: 1 },
-          },
-        }}
-      >
-        <Typography color="text.secondary">
-          목록에서 신청을 선택해 주세요.
-        </Typography>
-      </Paper>
-    );
-  }
 
   const isPending = request.status === "pending";
   const canApprove =
@@ -124,26 +99,12 @@ const RequestReviewActions = ({
 
       <Box sx={{ p: 2, overflow: "auto", flex: 1 }}>
         <Stack spacing={2}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <Avatar
-              sx={{
-                width: 44,
-                height: 44,
-                fontWeight: 700,
-                bgcolor: getAvatarColor(request.employee_full_name),
-              }}
-            >
-              {getInitials(request.employee_full_name)}
-            </Avatar>
-            <Box>
-              <Typography sx={{ fontWeight: 700 }}>
-                {request.employee_full_name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {request.department ?? "-"} · {request.employee_email}
-              </Typography>
-            </Box>
-          </Stack>
+          <EmployeeProfile
+            name={request.employee_full_name}
+            subtitle={`${request.department ?? "-"} · ${request.employee_email}`}
+            seed={request.employee_id}
+            size="medium"
+          />
 
           <Box>
             <InfoRow label="휴가 유형" value={request.leave_type_name} />
@@ -258,9 +219,6 @@ const RequestReviewActions = ({
           )}
 
           {actionError ? <Alert severity="error">{actionError}</Alert> : null}
-          {actionMessage ? (
-            <Alert severity="success">{actionMessage}</Alert>
-          ) : null}
         </Stack>
       </Box>
     </Paper>

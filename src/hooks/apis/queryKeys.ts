@@ -18,5 +18,10 @@ export const queryKeys = {
     "adminEmployeeBalances",
     filters ?? {},
   ],
+  adminEmployeeLeaveDetail: (employeeId: string, year: number) => [
+    "adminEmployeeLeaveDetail",
+    employeeId,
+    year,
+  ],
   adminSettings: ["adminSettings"],
 };

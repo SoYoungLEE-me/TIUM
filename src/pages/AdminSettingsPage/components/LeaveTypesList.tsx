@@ -90,6 +90,7 @@ const LeaveTypesList = ({ types, onToggle }: LeaveTypesListProps) => {
           <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Switch
               checked={type.is_active}
+              disabled={type.name === "연차"}
               onChange={() => onToggle(type.id)}
               slotProps={{
                 input: { "aria-label": `${type.name} 활성` },

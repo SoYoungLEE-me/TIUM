@@ -1,57 +1,28 @@
-import type { Workday } from "../../models/admin/setting";
-
 export const ADMIN_SETTINGS_MAX_WIDTH = 900;
 
 export const ADMIN_SETTINGS_TITLE = "규정 · AI 설정";
 export const ADMIN_SETTINGS_DESCRIPTION =
-  "기본 근무시간, 근무 요일, 자동 승인, 승인 규칙, 휴가 유형을 관리합니다.";
+  "기본 근무시간, 자동 승인, 승인 규칙, 휴가 유형을 관리합니다.";
 
 export const SETTINGS_SAVED_STATUS = "현재 규정이 저장되어 있어요.";
 export const SETTINGS_DIRTY_STATUS = "변경사항이 있어요. 저장해 주세요.";
 
-export const WORKDAY_OPTIONS: Array<{ value: Workday; label: string }> = [
-  { value: 1, label: "월" },
-  { value: 2, label: "화" },
-  { value: 3, label: "수" },
-  { value: 4, label: "목" },
-  { value: 5, label: "금" },
-  { value: 6, label: "토" },
-  { value: 7, label: "일" },
-];
-
-export const DEFAULT_WORKDAYS: Workday[] = [1, 2, 3, 4, 5];
-
-export const AUTO_APPROVAL_CONDITIONS: Array<{
-  id: string;
+/** 신청 시 항상 검증되는 조건 (토글 없음) */
+export const ALWAYS_ENFORCED_APPROVAL_CHECKS: Array<{
   title: string;
   description: string;
 }> = [
   {
-    id: "sufficient_balance",
     title: "잔여 연차 충분",
-    description: "신청 일수가 잔여 연차 이하",
+    description: "신청 일수가 잔여 연차 이하인지 항상 검사합니다.",
   },
   {
-    id: "no_overlap",
     title: "기존 신청과 중복 없음",
-    description: "같은 날짜에 승인 · 대기 중인 신청 없음",
-  },
-  {
-    id: "no_attendance_conflict",
-    title: "근태 기록과 충돌 없음",
-    description: "해당 날짜에 출퇴근 기록 없음",
-  },
-  {
-    id: "notice_deadline",
-    title: "신청 기한 충족",
-    description: "규정의 신청 기한 이전에 신청",
-  },
-  {
-    id: "consecutive_limit",
-    title: "연속 사용 한도 이하",
-    description: "아래 한도를 넘으면 관리자 검토",
+    description: "같은 날짜에 승인 · 대기 중인 신청이 없는지 항상 검사합니다.",
   },
 ];
+
+export const DEFAULT_MAX_CONSECUTIVE_DAYS = 3;
 
 export const TIME_MINUTE_STEP = 10;
 

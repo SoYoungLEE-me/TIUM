@@ -30,9 +30,11 @@ export const buildLeaveBalanceSnapshot = (
   };
 };
 
+/** 직원 연차 필터용 — hr_admin(HR)은 옵션에서 제외 (신청 검토 드롭다운과 동일 UX) */
 export const getEmployeeDepartments = (rows: EmployeeLeaveRow[]) => {
   const set = new Set<string>();
   rows.forEach((row) => {
+    if (row.employee.role === "hr_admin") return;
     if (row.employee.department) set.add(row.employee.department);
   });
   return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
@@ -124,18 +126,4 @@ export const applyRejectRelease = (
   );
 };
 
-const AVATAR_COLORS = [
-  { bg: "#F1E8F1", fg: "#744577" },
-  { bg: "#E7F1E3", fg: "#3F6E3A" },
-  { bg: "#E2F2EC", fg: "#2F7A65" },
-  { bg: "#FAF6DD", fg: "#6B5D10" },
-  { bg: "#F8E1DC", fg: "#A8402F" },
-];
-
-export const getAvatarColor = (seed: string) => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash + seed.charCodeAt(i) * (i + 1)) % AVATAR_COLORS.length;
-  }
-  return AVATAR_COLORS[hash] ?? AVATAR_COLORS[0];
-};
+export { getAvatarColor } from "./admin";

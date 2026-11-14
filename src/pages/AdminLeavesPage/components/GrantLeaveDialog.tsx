@@ -41,7 +41,7 @@ type GrantLeaveDialogProps = {
   year: number;
   error: string | null;
   onClose: () => void;
-  onSubmit: (payload: GrantLeaveInput) => boolean;
+  onSubmit: (payload: GrantLeaveInput) => boolean | Promise<boolean>;
 };
 
 const GrantLeaveDialog = ({
@@ -68,7 +68,7 @@ const GrantLeaveDialog = ({
     : null;
 
   const handleSubmit = () => {
-    onSubmit({
+    void onSubmit({
       employee_id: employeeId,
       days: parsedDays,
       reason: reason.trim(),

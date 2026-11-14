@@ -4,12 +4,8 @@ import {
   getLeaveRequest,
   getMyLeaveRequests,
   submitLeave,
-  validateLeave,
 } from "../../apis/leaves";
-import type {
-  LeaveInput,
-  SubmitLeaveRequest,
-} from "../../models/apis/leave";
+import type { LeaveInput } from "../../models/apis/leave";
 import { queryKeys } from "./queryKeys";
 
 export const useLeaveBalance = (year?: number) =>
@@ -36,15 +32,10 @@ export const useLeaveRequest = (requestId: string, enabled = true) =>
     enabled: Boolean(requestId) && enabled,
   });
 
-export const useValidateLeave = () =>
-  useMutation({
-    mutationFn: (body: LeaveInput) => validateLeave(body),
-  });
-
 export const useSubmitLeave = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: SubmitLeaveRequest) => submitLeave(body),
+    mutationFn: (body: LeaveInput) => submitLeave(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
       void queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
