@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import type { MouseEvent } from "react";
 import {
   AppBar,
@@ -17,6 +19,7 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import tiumLogo from "../../assets/logo/tium-logo-dark-text.svg";
 import { useMe } from "../../hooks/apis/useMe";
+import { useAuthStore } from "../../stores/authStore";
 import { getAvatarInitial } from "../../utils/profile/avatar";
 
 interface NavbarProps {
@@ -26,6 +29,9 @@ interface NavbarProps {
 
 const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
   const { data: me } = useMe();
+  const signOut = useAuthStore((state) => state.signOut);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const open = Boolean(anchorEl);
 
@@ -33,11 +39,13 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
     setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     handleClose();
-    // TODO: 로그아웃 처리 후 /login 이동
+    await signOut();
+    // 이전 사용자의 조회 결과가 남지 않도록 비우기
+    queryClient.clear();
+    navigate("/login", { replace: true });
   };
-
   return (
     <AppBar
       position="sticky"

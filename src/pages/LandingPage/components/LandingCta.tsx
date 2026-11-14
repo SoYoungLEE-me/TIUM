@@ -59,19 +59,6 @@ const LandingCta = () => (
         >
           로그인
         </Button>
-        <Typography
-          component={Link}
-          to="/signup"
-          sx={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: "inherit",
-            opacity: 0.85,
-            textUnderlineOffset: "4px",
-          }}
-        >
-          처음이라면 회원가입
-        </Typography>
       </Stack>
     </Box>
   </Container>
