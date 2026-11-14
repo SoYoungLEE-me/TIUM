@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { sendAssistantMessage } from "../../apis/assistant";
 import { queryKeys } from "../apis/queryKeys";
@@ -143,6 +143,42 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
 
   useEffect(() => () => clearCloseTimer(), []);
 
+  const inquiryListPageRef = useRef(inquiryListPage);
+  useEffect(() => {
+    inquiryListPageRef.current = inquiryListPage;
+  }, [inquiryListPage]);
+
+  const fetchInquiryPage = useCallback(
+    (page: number) =>
+      isAdmin
+        ? listAdminInquiryThreads({ page, pageSize: INQUIRY_PAGE_SIZE })
+        : listMyInquiryThreads({ page, pageSize: INQUIRY_PAGE_SIZE }),
+    [isAdmin],
+  );
+
+  const refreshInquiryThreads = useCallback(
+    async (opts?: { reset?: boolean }) => {
+      const reset = opts?.reset ?? true;
+      const page = reset ? 1 : inquiryListPageRef.current;
+      const { data, total } = await fetchInquiryPage(reset ? 1 : page);
+      if (reset) {
+        setInquiryThreads(data);
+        setInquiryListPage(1);
+      } else {
+        setInquiryThreads((prev) => {
+          const seen = new Set(prev.map((t) => t.id));
+          return [...prev, ...data.filter((t) => !seen.has(t.id))];
+        });
+      }
+      setInquiryListTotal(total);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.inquiryUnread(isAdmin ? "admin" : "employee"),
+      });
+      return data;
+    },
+    [fetchInquiryPage, isAdmin, queryClient],
+  );
+
   /** 문의 스레드 메시지 Realtime (패널이 열려 있고 해당 스레드일 때) */
   useEffect(() => {
     if (!open || mode !== "inquiry_thread" || !activeThreadId || inquiryDraft) {
@@ -172,7 +208,14 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
       console.warn("[inquiry realtime] messages subscribe failed", err);
       return undefined;
     }
-  }, [open, mode, activeThreadId, inquiryDraft, isAdmin]);
+  }, [
+    open,
+    mode,
+    activeThreadId,
+    inquiryDraft,
+    isAdmin,
+    refreshInquiryThreads,
+  ]);
 
   /** 문의 목록·뱃지 Realtime — 패널 닫혀 있어도 FAB 미읽음 갱신 */
   useEffect(() => {
@@ -204,8 +247,7 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
       cancelled = true;
       cleanup?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- variant별 상시 구독
-  }, [isAdmin]);
+  }, [isAdmin, refreshInquiryThreads]);
 
   useEffect(() => {
     if (!open) return;
@@ -229,31 +271,6 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [open]);
-
-  const fetchInquiryPage = (page: number) =>
-    isAdmin
-      ? listAdminInquiryThreads({ page, pageSize: INQUIRY_PAGE_SIZE })
-      : listMyInquiryThreads({ page, pageSize: INQUIRY_PAGE_SIZE });
-
-  const refreshInquiryThreads = async (opts?: { reset?: boolean }) => {
-    const reset = opts?.reset ?? true;
-    const page = reset ? 1 : inquiryListPage;
-    const { data, total } = await fetchInquiryPage(reset ? 1 : page);
-    if (reset) {
-      setInquiryThreads(data);
-      setInquiryListPage(1);
-    } else {
-      setInquiryThreads((prev) => {
-        const seen = new Set(prev.map((t) => t.id));
-        return [...prev, ...data.filter((t) => !seen.has(t.id))];
-      });
-    }
-    setInquiryListTotal(total);
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.inquiryUnread(isAdmin ? "admin" : "employee"),
-    });
-    return data;
-  };
 
   const loadMoreInquiryThreads = async () => {
     if (inquiryListLoadingMore) return;

@@ -11,11 +11,7 @@ import {
 } from "@mui/material";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import { useSearchParams } from "react-router";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AdminSectionHeader from "../../common/components/Admin/AdminSectionHeader";
 import PaginationBar from "../../common/components/pagenation";
 import { ConfirmModal } from "../../common/components/modal";
@@ -60,14 +56,6 @@ const AdminInquiriesPage = () => {
   const setActiveTab = (id: string) => {
     setParams(id === LIST_TAB ? {} : { tab: id });
   };
-
-  /** 알림 등에서 ?tab=threadId 로 진입 시 탭 목록에 반영 */
-  useEffect(() => {
-    if (tabParam === LIST_TAB) return;
-    setOpenTabIds((prev) =>
-      prev.includes(tabParam) ? prev : [...prev, tabParam],
-    );
-  }, [tabParam]);
 
   const openThreadTab = (threadId: string) => {
     setOpenTabIds((prev) =>
@@ -375,7 +363,11 @@ const AdminInquiriesPage = () => {
                             />
                           ) : null}
                         </Stack>
-                        <Typography variant="body2" color="text.secondary" noWrap>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          noWrap
+                        >
                           {thread.subject} ·{" "}
                           {new Date(thread.last_message_at).toLocaleString(
                             "ko-KR",
@@ -504,11 +496,7 @@ const AdminInquiriesPage = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (
-                      draft.trim() &&
-                      !isClosed &&
-                      !sendMutation.isPending
-                    ) {
+                    if (draft.trim() && !isClosed && !sendMutation.isPending) {
                       sendMutation.mutate();
                     }
                   }
