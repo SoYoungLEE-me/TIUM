@@ -40,21 +40,6 @@ type PendingRequestListProps = {
   onPageChange: (page: number) => void;
 };
 
-/**
- * 콘텐츠 열 합(200+140+64+88) + gap(12*4) + px(32) ≈ 572
- * width 100% → 끝 1fr 여백. 더 좁아지면 가로 스크롤.
- */
-const ROW_MIN_WIDTH = 580;
-
-const ROW_GRID = {
-  display: "grid",
-  gridTemplateColumns: "200px 140px 64px 88px minmax(0, 1fr)",
-  columnGap: 1.5,
-  alignItems: "center",
-  width: "100%",
-  boxSizing: "border-box" as const,
-};
-
 const PendingRequestList = ({
   requests,
   selectedId,
@@ -145,33 +130,43 @@ const PendingRequestList = ({
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ width: "100%", minWidth: ROW_MIN_WIDTH }}>
-            {requests.map((request) => {
-              const selected = request.id === selectedId;
+          requests.map((request) => {
+            const selected = request.id === selectedId;
 
-              return (
-                <ButtonBase
-                  key={request.id}
-                  onClick={() => onSelect(request.id)}
-                  focusRipple
+            return (
+              <ButtonBase
+                key={request.id}
+                onClick={() => onSelect(request.id)}
+                focusRipple
+                sx={{
+                  display: "block",
+                  width: "100%",
+                  px: 2,
+                  py: 1.5,
+                  textAlign: "left",
+                  borderRadius: 0,
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: selected ? "action.selected" : "transparent",
+                  borderLeft: "3px solid",
+                  borderLeftColor: selected ? "primary.main" : "transparent",
+                  transition: (theme) =>
+                    theme.transitions.create("background-color", {
+                      duration: theme.transitions.duration.shortest,
+                    }),
+                  "&:hover": {
+                    bgcolor: selected ? "action.selected" : "action.hover",
+                  },
+                }}
+              >
+                {/* 모바일: 프로필 | 연차·일수·기간 | 상태 — 1:1:1 */}
+                <Box
                   sx={{
-                    ...ROW_GRID,
-                    px: 2,
-                    py: 1.5,
-                    textAlign: "left",
-                    borderRadius: 0,
-                    borderBottom: "1px solid",
-                    borderColor: "divider",
-                    bgcolor: selected ? "action.selected" : "transparent",
-                    borderLeft: "3px solid",
-                    borderLeftColor: selected ? "primary.main" : "transparent",
-                    transition: (theme) =>
-                      theme.transitions.create("background-color", {
-                        duration: theme.transitions.duration.shortest,
-                      }),
-                    "&:hover": {
-                      bgcolor: selected ? "action.selected" : "action.hover",
-                    },
+                    display: { xs: "grid", sm: "none" },
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    columnGap: 1,
+                    alignItems: "center",
+                    minWidth: 0,
                   }}
                 >
                   <Box sx={{ minWidth: 0 }}>
@@ -181,7 +176,53 @@ const PendingRequestList = ({
                       seed={request.employee_id}
                     />
                   </Box>
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    useFlexGap
+                    sx={{
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexWrap: "wrap",
+                      minWidth: 0,
+                      rowGap: 0.25,
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {request.leave_type_name}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {request.total_days.toFixed(1)}일
+                    </Typography>
+                    <Typography variant="subtitle1">
+                      {formatLeavePeriod(request.start_date, request.end_date)}
+                    </Typography>
+                  </Stack>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      minWidth: 0,
+                    }}
+                  >
+                    <LeaveStatusChip status={request.status} />
+                  </Box>
+                </Box>
 
+                {/* sm+: 기존 그리드 */}
+                <Box
+                  sx={{
+                    display: { xs: "none", sm: "grid" },
+                    gridTemplateColumns: "1.4fr 1.3fr 0.7fr 0.9fr",
+                    gap: 1,
+                    alignItems: "center",
+                  }}
+                >
+                  <EmployeeProfile
+                    name={request.employee_full_name}
+                    subtitle={request.department ?? "-"}
+                    seed={request.employee_id}
+                  />
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                       {request.leave_type_name}
@@ -190,19 +231,16 @@ const PendingRequestList = ({
                       {formatLeavePeriod(request.start_date, request.end_date)}
                     </Typography>
                   </Box>
-
                   <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                     {request.total_days.toFixed(1)}일
                   </Typography>
-
                   <Box sx={{ minWidth: 0 }}>
                     <LeaveStatusChip status={request.status} />
                   </Box>
-                  <Box aria-hidden sx={{ minWidth: 0 }} />
-                </ButtonBase>
-              );
-            })}
-          </Box>
+                </Box>
+              </ButtonBase>
+            );
+          })
         )}
       </Box>
 

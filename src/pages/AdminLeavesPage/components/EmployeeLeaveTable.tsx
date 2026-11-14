@@ -28,15 +28,11 @@ type EmployeeLeaveTableProps = {
   onGrant: (employeeId: string) => void;
 };
 
-/**
- * 콘텐츠 열 합(240+80+64*3+80+100+148) + gap(12*8) + px(40) ≈ 976
- * width 100% → 끝 1fr이 여백. 컨테이너 < minWidth 이면 가로 스크롤.
- */
+/** sm+ 테이블: 콘텐츠 열 합 + gap + padding. 더 좁으면 가로 스크롤 */
 const ROW_MIN_WIDTH = 980;
 
 const ROW_GRID = {
   display: "grid",
-  // 콘텐츠 열 고정 + 마지막 1fr(공백). 줄어들면 1fr만 줄고, 그 다음 스크롤
   gridTemplateColumns:
     "240px 80px 64px 64px 64px 80px 100px 148px minmax(0, 1fr)",
   columnGap: 1.5,
@@ -46,6 +42,35 @@ const ROW_GRID = {
 };
 
 const GridSpacer = () => <Box aria-hidden sx={{ minWidth: 0 }} />;
+
+const StatCell = ({
+  label,
+  value,
+  emphasize,
+}: {
+  label: string;
+  value: string;
+  emphasize?: boolean;
+}) => (
+  <Box sx={{ minWidth: 0 }}>
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{ fontSize: 11, fontWeight: 600, mb: 0.25 }}
+    >
+      {label}
+    </Typography>
+    <Typography
+      variant="body2"
+      sx={{
+        fontWeight: emphasize ? 700 : 600,
+        color: emphasize ? "warning.main" : "text.primary",
+      }}
+    >
+      {value}
+    </Typography>
+  </Box>
+);
 
 const EmployeeLeaveTable = ({
   rows,
@@ -99,8 +124,153 @@ const EmployeeLeaveTable = ({
         </Box>
       ) : (
         <>
+          {/* 모바일: 카드 */}
+          <Box
+            sx={{
+              display: { xs: "flex", sm: "none" },
+              flexDirection: "column",
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            {rows.map((row) => {
+              const selected = row.employee.id === selectedEmployeeId;
+
+              return (
+                <Box
+                  key={row.employee.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onDetail(row.employee.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onDetail(row.employee.id);
+                    }
+                  }}
+                  sx={{
+                    px: 2.5,
+                    py: 1.75,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    borderLeft: "3px solid",
+                    borderLeftColor: selected ? "primary.main" : "transparent",
+                    bgcolor: selected ? "action.selected" : "transparent",
+                    cursor: "pointer",
+                    "&:hover": {
+                      bgcolor: selected ? "action.selected" : "action.hover",
+                    },
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 1.25,
+                    }}
+                  >
+                    <EmployeeProfile
+                      name={row.employee.full_name}
+                      subtitle={row.employee.email}
+                      seed={row.employee.id}
+                    />
+                    <Chip
+                      size="small"
+                      label={row.employee.department ?? "-"}
+                      sx={{ flexShrink: 0, fontWeight: 600 }}
+                    />
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                      gap: 1,
+                      mb: 1.25,
+                    }}
+                  >
+                    <StatCell
+                      label="부여"
+                      value={formatLeaveDays(row.balance.total_days)}
+                    />
+                    <StatCell
+                      label="사용"
+                      value={formatLeaveDays(row.balance.used_days)}
+                    />
+                    <StatCell
+                      label="잔여"
+                      value={formatLeaveDays(row.balance.remaining_days)}
+                    />
+                    <StatCell
+                      label="대기"
+                      value={formatLeaveDays(row.balance.pending_days)}
+                      emphasize
+                    />
+                  </Box>
+
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ fontSize: 11, fontWeight: 600, mb: 0.5 }}
+                    >
+                      신청 가능
+                    </Typography>
+                    <LeaveUsageGauge
+                      availableDays={row.balance.available_days}
+                      totalDays={row.balance.total_days}
+                    />
+                  </Box>
+
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    onClick={(event) => event.stopPropagation()}
+                    onMouseDown={(event) => event.stopPropagation()}
+                  >
+                    <Button
+                      size="small"
+                      fullWidth
+                      variant={selected ? "contained" : "outlined"}
+                      color={selected ? "primary" : "inherit"}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDetail(row.employee.id);
+                      }}
+                      sx={
+                        selected
+                          ? undefined
+                          : {
+                              borderColor: "divider",
+                              color: "text.primary",
+                            }
+                      }
+                    >
+                      상세
+                    </Button>
+                    <Button
+                      size="small"
+                      fullWidth
+                      variant="outlined"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onGrant(row.employee.id);
+                      }}
+                    >
+                      부여
+                    </Button>
+                  </Stack>
+                </Box>
+              );
+            })}
+          </Box>
+
+          {/* sm+: 테이블 */}
           <Box
             sx={(theme) => ({
+              display: { xs: "none", sm: "block" },
               overflowX: "auto",
               overflowY: "hidden",
               borderTop: "1px solid",
@@ -125,12 +295,7 @@ const EmployeeLeaveTable = ({
               },
             })}
           >
-            <Box
-              sx={{
-                width: "100%",
-                minWidth: ROW_MIN_WIDTH,
-              }}
-            >
+            <Box sx={{ width: "100%", minWidth: ROW_MIN_WIDTH }}>
               <Box
                 sx={{
                   ...ROW_GRID,
