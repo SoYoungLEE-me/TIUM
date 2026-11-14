@@ -179,3 +179,53 @@ export const rejectAdminLeave = async (
   });
   return { ...data, total_days: Number(data.total_days) };
 };
+
+/** HR UPDATE RLS — pending만 cancelled로 변경 */
+export const cancelAdminLeave = async (
+  requestId: string
+): Promise<LeaveRequest> => {
+  const existing = await unwrap(
+    supabase
+      .from("leave_requests")
+      .select(LEAVE_SELECT)
+      .eq("id", requestId)
+      .maybeSingle()
+  );
+
+  if (!existing) {
+    throw new ApiRequestError({
+      code: "NOT_FOUND",
+      message: "Leave request not found.",
+      details: {},
+    });
+  }
+
+  const current = mapLeaveRequest(existing as Record<string, unknown>);
+  if (current.status !== "pending") {
+    throw new ApiRequestError({
+      code: "INVALID_STATUS",
+      message: "Only pending leave requests can be cancelled.",
+      details: { status: current.status },
+    });
+  }
+
+  const updated = await unwrap(
+    supabase
+      .from("leave_requests")
+      .update({ status: "cancelled" })
+      .eq("id", requestId)
+      .eq("status", "pending")
+      .select(LEAVE_SELECT)
+      .maybeSingle()
+  );
+
+  if (!updated) {
+    throw new ApiRequestError({
+      code: "CONFLICT",
+      message: "Leave request could not be cancelled.",
+      details: {},
+    });
+  }
+
+  return mapLeaveRequest(updated as Record<string, unknown>);
+};

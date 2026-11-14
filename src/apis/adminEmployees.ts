@@ -2,7 +2,74 @@ import { supabase } from "../libs/supabaseClient";
 import type { AdminEmployeeBalancesResponse } from "../models/apis/admin";
 import { ApiRequestError } from "../models/apis/common";
 import type { Employee } from "../models/apis/employees";
+import { invokeFunction } from "./apiRequest";
 import { toBalance } from "./leaves";
+
+export type CreateEmployeeInput = {
+  full_name: string;
+  email: string;
+  department?: string | null;
+};
+
+export type UpdateEmployeeProfileInput = {
+  employee_id: string;
+  full_name?: string;
+  email?: string;
+  department?: string | null;
+};
+
+type EmployeeEdgeResponse = {
+  message?: string;
+  data?: Employee;
+  employee?: Employee;
+  error?: string;
+};
+
+export const createEmployee = async (
+  input: CreateEmployeeInput
+): Promise<Employee> => {
+  const result = await invokeFunction<EmployeeEdgeResponse>("create-employee", {
+    full_name: input.full_name,
+    email: input.email,
+    department: input.department ?? null,
+  });
+
+  const employee = result.data ?? result.employee;
+  if (!employee) {
+    throw new ApiRequestError({
+      code: "FUNCTION_ERROR",
+      message: result.error ?? "Failed to create employee.",
+      details: {},
+    });
+  }
+  return employee;
+};
+
+export const updateEmployeeProfile = async (
+  input: UpdateEmployeeProfileInput
+): Promise<Employee> => {
+  const body: Record<string, unknown> = {
+    employee_id: input.employee_id,
+  };
+  if (input.full_name !== undefined) body.full_name = input.full_name;
+  if (input.email !== undefined) body.email = input.email;
+  if (input.department !== undefined) body.department = input.department;
+
+  const result = await invokeFunction<EmployeeEdgeResponse>(
+    "update-employee-profile",
+    body
+  );
+
+  const employee = result.data ?? result.employee;
+  if (!employee) {
+    throw new ApiRequestError({
+      code: "FUNCTION_ERROR",
+      message: result.error ?? "Failed to update employee profile.",
+      details: {},
+    });
+  }
+  return employee;
+};
 
 const currentYearSeoul = () =>
   Number(

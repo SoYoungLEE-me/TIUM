@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveAdminLeave,
+  cancelAdminLeave,
   getAdminLeave,
   getAdminLeaves,
   rejectAdminLeave,
@@ -48,6 +49,17 @@ export const useRejectAdminLeave = () => {
       requestId: string;
       body?: DecisionInput;
     }) => rejectAdminLeave(requestId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
+      void queryClient.invalidateQueries({ queryKey: ["adminLeave"] });
+    },
+  });
+};
+
+export const useCancelAdminLeave = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (requestId: string) => cancelAdminLeave(requestId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
       void queryClient.invalidateQueries({ queryKey: ["adminLeave"] });
