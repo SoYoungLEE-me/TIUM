@@ -29,7 +29,10 @@ type NotifItem = {
   id: string;
   title: string;
   subtitle: string;
-  href: string;
+  /** 관리자 연차 검토 등 페이지 이동 */
+  href?: string;
+  /** 직원 문의 → 챗봇 스레드 열기 */
+  threadId?: string;
 };
 
 const PAGE = 15;
@@ -40,6 +43,12 @@ const NotificationBell = ({ variant }: NotificationBellProps) => {
   const navigate = useNavigate();
   const listRef = useRef<HTMLUListElement | null>(null);
 
+  useEffect(() => {
+    const onChatbotOpened = () => setAnchorEl(null);
+    window.addEventListener("chatbot-opened", onChatbotOpened);
+    return () => window.removeEventListener("chatbot-opened", onChatbotOpened);
+  }, []);
+
   const unreadQuery = useQuery({
     queryKey: queryKeys.inquiryUnread(variant),
     queryFn: () =>
@@ -49,7 +58,7 @@ const NotificationBell = ({ variant }: NotificationBellProps) => {
 
   const pendingLeavesQuery = useAdminLeaves(
     { status: "pending", page: 1, page_size: 1 },
-    { enabled: variant === "admin" },
+    { enabled: variant === "admin", refetchInterval: 15_000 },
   );
 
   const infinite = useInfiniteQuery({
@@ -109,11 +118,11 @@ const NotificationBell = ({ variant }: NotificationBellProps) => {
         id: thread.id,
         title:
           unread > 0 ? `${thread.subject} · 미읽음 ${unread}` : thread.subject,
-        subtitle: "문의 목록으로 이동",
-        href:
-          variant === "admin"
-            ? `/admin/inquiries?tab=${thread.id}`
-            : "/inquiries",
+        subtitle:
+          variant === "admin" ? "문의 목록으로 이동" : "HR 도우미에서 열기",
+        ...(variant === "admin"
+          ? { href: `/admin/inquiries?tab=${thread.id}` }
+          : { threadId: thread.id }),
       });
     }
   }
@@ -179,7 +188,15 @@ const NotificationBell = ({ variant }: NotificationBellProps) => {
               key={item.id}
               onClick={() => {
                 setAnchorEl(null);
-                navigate(item.href);
+                if (item.threadId) {
+                  window.dispatchEvent(
+                    new CustomEvent("open-chatbot-inquiry", {
+                      detail: { threadId: item.threadId },
+                    }),
+                  );
+                  return;
+                }
+                if (item.href) navigate(item.href);
               }}
             >
               <ListItemText primary={item.title} secondary={item.subtitle} />

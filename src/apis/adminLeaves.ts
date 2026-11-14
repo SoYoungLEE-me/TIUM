@@ -229,3 +229,25 @@ export const cancelAdminLeave = async (
 
   return mapLeaveRequest(updated as Record<string, unknown>);
 };
+
+/** 연차 신청 변경 Realtime (관리자 뱃지/목록 갱신용) */
+export const subscribeLeaveRequests = (onChange: () => void): (() => void) => {
+  const channel = supabase
+    .channel(`leave-requests:admin:${crypto.randomUUID()}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "leave_requests",
+      },
+      () => {
+        onChange();
+      },
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+};

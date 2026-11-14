@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ADMIN_REVIEW_PAGE_SIZE,
   DEFAULT_ADMIN_LEAVE_STATUS,
@@ -9,6 +10,7 @@ import {
   useApproveAdminLeave,
   useRejectAdminLeave,
 } from "../apis/useAdminLeaves";
+import { queryKeys } from "../apis/queryKeys";
 import type {
   AdminLeaveFilter,
   AdminLeaveRequest,
@@ -79,10 +81,24 @@ export const useAdminLeaveReview = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
+
   // status/department/search는 클라이언트에서만 필터 — 요약·탭 카운트가 항상 전체 기준
-  const leavesQuery = useAdminLeaves({ page_size: 100 });
+  const leavesQuery = useAdminLeaves({ page_size: 100 }, { refetchInterval: 15_000 });
   const approveMutation = useApproveAdminLeave();
   const rejectMutation = useRejectAdminLeave();
+
+  // 목록이 갱신되면 사이드바/알림의 pending 뱃지도 즉시 맞춤
+  useEffect(() => {
+    if (!leavesQuery.isSuccess) return;
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.adminLeaves({
+        status: "pending",
+        page: 1,
+        page_size: 1,
+      }),
+    });
+  }, [leavesQuery.dataUpdatedAt, leavesQuery.isSuccess, queryClient]);
 
   const requests = useMemo(() => {
     const items = leavesQuery.data?.data ?? [];

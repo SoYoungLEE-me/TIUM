@@ -30,8 +30,7 @@ const mapInquiryThread = (row: InquiryThreadRow): InquiryThread => {
   const hasUserMessage = (row.inquiry_messages ?? []).some(
     (m) => m.kind === "user",
   );
-  const { inquiry_messages: msgs, ...rest } = row;
-  console.log(msgs);
+  const { inquiry_messages: _msgs, ...rest } = row;
   // 사용자 메시지 없는 open → UI/삭제 기준상 draft
   const status: InquiryThreadStatus =
     rest.status === "open" && !hasUserMessage ? "draft" : rest.status;
@@ -290,32 +289,14 @@ export const countAdminOpenInquiries = async (): Promise<number> => {
   ).length;
 };
 
-/** 같은 topic 접두사의 기존 채널 제거 (Strict Mode 재구독 충돌 방지) */
-const removeChannelsByPrefix = (prefix: string) => {
-  for (const ch of supabase.getChannels()) {
-    const topic = ch.topic ?? "";
-    if (
-      topic === prefix ||
-      topic === `realtime:${prefix}` ||
-      topic.startsWith(`${prefix}:`) ||
-      topic.startsWith(`realtime:${prefix}:`)
-    ) {
-      void supabase.removeChannel(ch);
-    }
-  }
-};
-
 /** 문의 메시지 INSERT Realtime 구독. cleanup 함수 반환 */
 export const subscribeInquiryMessages = (
   threadId: string,
   onInsert: (message: InquiryMessage) => void,
 ): (() => void) => {
-  const prefix = `inquiry-messages:${threadId}`;
-  removeChannelsByPrefix(prefix);
-
-  // 고유 이름: subscribe 된 채널에 다시 .on() 붙는 것 방지
+  // 고유 채널명만 사용 — prefix 전체 제거 시 같은 탭의 다른 구독(관리자+챗봇)이 끊김
   const channel = supabase
-    .channel(`${prefix}:${crypto.randomUUID()}`)
+    .channel(`inquiry-messages:${threadId}:${crypto.randomUUID()}`)
     .on(
       "postgres_changes",
       {
@@ -347,7 +328,6 @@ export const subscribeInquiryThreads = (
   const prefix = opts?.employeeId
     ? `inquiry-threads:employee:${opts.employeeId}`
     : "inquiry-threads:admin";
-  removeChannelsByPrefix(prefix);
 
   const channel = supabase
     .channel(`${prefix}:${crypto.randomUUID()}`)

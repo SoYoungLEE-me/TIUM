@@ -114,7 +114,7 @@ const ChatPanel = forwardRef<HTMLDivElement, ChatPanelProps>(
         <ChatInput
           placeholder={placeholder}
           hint={hint}
-          disabled={loading || Boolean(submittingMessageId)}
+          disabled={Boolean(submittingMessageId)}
           onSend={onSend}
         />
       </Paper>

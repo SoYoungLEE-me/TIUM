@@ -40,6 +40,7 @@ export const useSubmitLeave = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
       void queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
     },
   });
@@ -55,6 +56,7 @@ export const useSubmitLeaveFromToken = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
       void queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
     },
   });

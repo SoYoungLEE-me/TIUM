@@ -1,11 +1,12 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "../common/components/Loading/LoadingSpinner";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from "react-router";
 import Chatbot from "../common/chatbot/Chatbot";
 import Scroll from "../common/scroll/scroll";
 import { useAdminLeaves } from "../hooks/apis/useAdminLeaves";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { subscribeLeaveRequests } from "../apis/adminLeaves";
 import { countUnreadInquiries } from "../apis/inquiries";
 import { queryKeys } from "../hooks/apis/queryKeys";
 import Sidebar from "./components/Sidebar";
@@ -22,16 +23,24 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const pendingLeavesQuery = useAdminLeaves(
     { status: "pending", page: 1, page_size: 1 },
-    { enabled: variant === "admin" },
+    { enabled: variant === "admin", refetchInterval: 15_000 },
   );
+
+  useEffect(() => {
+    if (variant !== "admin") return;
+    return subscribeLeaveRequests(() => {
+      void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
+    });
+  }, [variant, queryClient]);
 
   const inquiryUnreadQuery = useQuery({
     queryKey: queryKeys.inquiryUnread(variant),
-    queryFn: () =>
-      countUnreadInquiries(variant === "admin" ? "hr_admin" : "employee"),
+    queryFn: () => countUnreadInquiries("hr_admin"),
+    enabled: variant === "admin",
     refetchInterval: 30_000,
   });
 
@@ -53,14 +62,7 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
     });
   }, [pendingLeavesQuery.data, inquiryUnreadQuery.data]);
 
-  const employeeMenuItems = useMemo(() => {
-    const inquiryCount = inquiryUnreadQuery.data ?? 0;
-    return EMPLOYEE_MENU.map((item) =>
-      item.path === "/inquiries"
-        ? { ...item, badge: inquiryCount || undefined }
-        : item,
-    );
-  }, [inquiryUnreadQuery.data]);
+  const employeeMenuItems = EMPLOYEE_MENU;
 
   return (
     <Box
@@ -101,7 +103,7 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
           </Suspense>
         </Scroll>
       </Box>
-      <Chatbot />
+      <Chatbot variant={variant} />
     </Box>
   );
 };

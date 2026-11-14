@@ -9,6 +9,7 @@ export const CHATBOT_UI = {
   quick_actions: [
     { label: "잔여 연차 확인", trigger: "잔여 연차 확인" },
     { label: "회사 휴가 규정", trigger: "회사 휴가 규정" },
+    { label: "연차신청", trigger: "__leave_apply__" },
   ],
   inquiry_action: { label: "관리자 문의", trigger: "__inquiry__" },
   tooltip: "연차, 편하게 물어보세요",

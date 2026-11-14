@@ -23,7 +23,6 @@ export const EMPLOYEE_MENU: MenuItem[] = [
     icon: <CalendarMonthRoundedIcon />,
   },
   { label: "연차 관리", path: "/leaves", icon: <BeachAccessRoundedIcon /> },
-  { label: "문의", path: "/inquiries", icon: <ForumRoundedIcon /> },
 ];
 
 export const ADMIN_MENU: MenuItem[] = [

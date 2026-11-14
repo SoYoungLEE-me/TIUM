@@ -55,6 +55,7 @@ const AdminInquiriesPage = () => {
   const [draft, setDraft] = useState("");
   const queryClient = useQueryClient();
   const messagesBottomRef = useRef<HTMLDivElement | null>(null);
+  const replyInputRef = useRef<HTMLInputElement | null>(null);
 
   const setActiveTab = (id: string) => {
     setParams(id === LIST_TAB ? {} : { tab: id });
@@ -209,9 +210,22 @@ const AdminInquiriesPage = () => {
         body: draft,
         channel: "admin",
       }),
-    onSuccess: () => {
+    onSuccess: (message) => {
       setDraft("");
+      if (activeThreadId) {
+        queryClient.setQueryData<InquiryMessage[]>(
+          queryKeys.inquiryMessages(activeThreadId),
+          (prev) => {
+            const list = prev ?? [];
+            if (list.some((m) => m.id === message.id)) return list;
+            return [...list, message];
+          },
+        );
+      }
       invalidateAll();
+      requestAnimationFrame(() => {
+        replyInputRef.current?.focus();
+      });
     },
     onError: (err) => {
       toast.error(
@@ -291,12 +305,6 @@ const AdminInquiriesPage = () => {
           height: "calc(100dvh - 200px)",
         }}
       >
-        <Box sx={{ px: 2, pt: 1.5, flexShrink: 0 }}>
-          <Typography variant="h2" sx={{ mb: 0.5 }}>
-            문의
-          </Typography>
-        </Box>
-
         <Box sx={{ flexShrink: 0 }}>
           <InquiryTabBar
             tabs={tabs}
@@ -490,12 +498,19 @@ const AdminInquiriesPage = () => {
                   isClosed ? "종료된 문의입니다" : "답변을 입력하세요"
                 }
                 value={draft}
-                disabled={isClosed || sendMutation.isPending}
+                disabled={isClosed}
+                inputRef={replyInputRef}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (draft.trim() && !isClosed) sendMutation.mutate();
+                    if (
+                      draft.trim() &&
+                      !isClosed &&
+                      !sendMutation.isPending
+                    ) {
+                      sendMutation.mutate();
+                    }
                   }
                 }}
               />

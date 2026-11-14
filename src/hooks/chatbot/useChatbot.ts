@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { sendAssistantMessage } from "../../apis/assistant";
+import { queryKeys } from "../apis/queryKeys";
 import {
+  closeInquiry,
   createInquiryThread,
   deleteInquiry,
   getInquiryMessages,
   getInquiryThread,
   insertInquirySystemMessage,
+  listAdminInquiryThreads,
   listMyInquiryThreads,
   markInquiryRead,
   sendInquiryMessage,
@@ -31,9 +35,10 @@ import type {
 } from "../../models/chatbot/chatbot";
 import { ApiRequestError } from "../../models/apis/common";
 import { toast } from "../../common/components/toast";
-import { createId } from "../../utils/chatbot/chatbot";
+import { createId, extractIsoDates } from "../../utils/chatbot/chatbot";
 
 export type ChatbotMode = "assistant" | "inquiry_list" | "inquiry_thread";
+export type ChatbotVariant = "employee" | "admin";
 
 const DRAFT_THREAD_ID = "__draft__";
 
@@ -45,7 +50,10 @@ const buildConnectingMessages = (): string[] => {
   return lines;
 };
 
-export const useChatbot = () => {
+export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
+  const variant = opts?.variant ?? "employee";
+  const isAdmin = variant === "admin";
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [panelMounted, setPanelMounted] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -105,6 +113,8 @@ export const useChatbot = () => {
     clearCloseTimer();
     if (opts?.mode) setMode(opts.mode);
     setPanelMounted(true);
+    // FAB가 알림 Popover 위에 있어 백드롭 클릭이 안 되므로, 열릴 때 알림을 닫음
+    window.dispatchEvent(new CustomEvent("chatbot-opened"));
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setOpen(true));
     });
@@ -133,7 +143,7 @@ export const useChatbot = () => {
 
   useEffect(() => () => clearCloseTimer(), []);
 
-  /** 문의 스레드 메시지 Realtime */
+  /** 문의 스레드 메시지 Realtime (패널이 열려 있고 해당 스레드일 때) */
   useEffect(() => {
     if (!open || mode !== "inquiry_thread" || !activeThreadId || inquiryDraft) {
       return;
@@ -145,10 +155,11 @@ export const useChatbot = () => {
         setInquiryMessages((prev) => {
           if (prev.some((m) => m.id === message.id)) return prev;
           // optimistic 임시 id 가 있으면 body 로 교체
+          const sendChannel = isAdmin ? "admin" : "chatbot";
           const withoutOptimistic = prev.filter(
             (m) =>
               !(
-                m.channel === "chatbot" &&
+                m.channel === sendChannel &&
                 m.sender_id == null &&
                 m.body === message.body
               ),
@@ -161,37 +172,40 @@ export const useChatbot = () => {
       console.warn("[inquiry realtime] messages subscribe failed", err);
       return undefined;
     }
-  }, [open, mode, activeThreadId, inquiryDraft]);
+  }, [open, mode, activeThreadId, inquiryDraft, isAdmin]);
 
-  /** 문의 목록 Realtime (본인 스레드) */
+  /** 문의 목록·뱃지 Realtime — 패널 닫혀 있어도 FAB 미읽음 갱신 */
   useEffect(() => {
-    if (!open || (mode !== "inquiry_list" && mode !== "inquiry_thread")) {
-      return;
-    }
     let cleanup: (() => void) | undefined;
     let cancelled = false;
-    void getMe()
-      .then((me) => {
+    void (async () => {
+      try {
+        await refreshInquiryThreads({ reset: true });
         if (cancelled) return;
-        try {
+        if (isAdmin) {
+          cleanup = subscribeInquiryThreads(() => {
+            void refreshInquiryThreads({ reset: true });
+          });
+        } else {
+          const me = await getMe();
+          if (cancelled) return;
           cleanup = subscribeInquiryThreads(
             () => {
               void refreshInquiryThreads({ reset: true });
             },
             { employeeId: me.id },
           );
-        } catch (err) {
-          console.warn("[inquiry realtime] threads subscribe failed", err);
         }
-      })
-      .catch(() => {
-        /* ignore */
-      });
+      } catch (err) {
+        console.warn("[inquiry realtime] threads subscribe failed", err);
+      }
+    })();
     return () => {
       cancelled = true;
       cleanup?.();
     };
-  }, [open, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- variant별 상시 구독
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!open) return;
@@ -216,13 +230,15 @@ export const useChatbot = () => {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [open]);
 
+  const fetchInquiryPage = (page: number) =>
+    isAdmin
+      ? listAdminInquiryThreads({ page, pageSize: INQUIRY_PAGE_SIZE })
+      : listMyInquiryThreads({ page, pageSize: INQUIRY_PAGE_SIZE });
+
   const refreshInquiryThreads = async (opts?: { reset?: boolean }) => {
     const reset = opts?.reset ?? true;
     const page = reset ? 1 : inquiryListPage;
-    const { data, total } = await listMyInquiryThreads({
-      page: reset ? 1 : page,
-      pageSize: INQUIRY_PAGE_SIZE,
-    });
+    const { data, total } = await fetchInquiryPage(reset ? 1 : page);
     if (reset) {
       setInquiryThreads(data);
       setInquiryListPage(1);
@@ -233,6 +249,9 @@ export const useChatbot = () => {
       });
     }
     setInquiryListTotal(total);
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.inquiryUnread(isAdmin ? "admin" : "employee"),
+    });
     return data;
   };
 
@@ -242,10 +261,7 @@ export const useChatbot = () => {
     const nextPage = inquiryListPage + 1;
     setInquiryListLoadingMore(true);
     try {
-      const { data, total } = await listMyInquiryThreads({
-        page: nextPage,
-        pageSize: INQUIRY_PAGE_SIZE,
-      });
+      const { data, total } = await fetchInquiryPage(nextPage);
       setInquiryListPage(nextPage);
       setInquiryListTotal(total);
       setInquiryThreads((prev) => {
@@ -289,11 +305,11 @@ export const useChatbot = () => {
     setLoading(true);
     try {
       const thread = await getInquiryThread(threadId);
-      setInquiryDraft(thread?.status === "draft");
+      setInquiryDraft(!isAdmin && thread?.status === "draft");
       setActiveThreadEmployeeId(thread?.employee_id ?? null);
       const msgs = await getInquiryMessages(threadId);
       setInquiryMessages(msgs);
-      await markInquiryRead(threadId, "employee");
+      await markInquiryRead(threadId, isAdmin ? "hr_admin" : "employee");
       await refreshInquiryThreads({ reset: true });
     } catch (err) {
       toast.error(
@@ -306,8 +322,12 @@ export const useChatbot = () => {
     }
   };
 
-  /** draft 스레드를 DB에 만들고 채팅 UI 진입 */
+  /** draft 스레드를 DB에 만들고 채팅 UI 진입 (직원만) */
   const startNewInquiry = async () => {
+    if (isAdmin) {
+      toast.warning("관리자는 새 문의를 시작할 수 없습니다. 문의함에서 답변하세요.");
+      return;
+    }
     setLoading(true);
     try {
       const thread = await createInquiryThread({
@@ -352,12 +372,35 @@ export const useChatbot = () => {
     }
   };
 
+  const closeInquiryThread = async (threadId?: string) => {
+    const id = threadId ?? activeThreadId;
+    if (!id || id === DRAFT_THREAD_ID) return;
+    try {
+      await closeInquiry(id);
+      toast.success("문의가 종료되었습니다.");
+      setActiveThreadId(null);
+      setActiveThreadEmployeeId(null);
+      setInquiryMessages([]);
+      setInquiryDraft(false);
+      setMode("inquiry_list");
+      await refreshInquiryThreads({ reset: true });
+    } catch (err) {
+      toast.error(
+        err instanceof ApiRequestError
+          ? err.message
+          : "문의 종료에 실패했습니다.",
+      );
+    }
+  };
+
   const sendInquiryChat = async (text: string) => {
     if (!text.trim() || loadingRef.current) return;
     if (activeInquiryClosed) {
       toast.warning("종료된 문의에는 메시지를 보낼 수 없습니다.");
       return;
     }
+
+    const channel = isAdmin ? "admin" : "chatbot";
 
     loadingRef.current = true;
     setLoading(true);
@@ -366,8 +409,8 @@ export const useChatbot = () => {
       id: createId(),
       thread_id: activeThreadId ?? DRAFT_THREAD_ID,
       sender_id: null,
-      sender_role: "employee",
-      channel: "chatbot",
+      sender_role: isAdmin ? "hr_admin" : "employee",
+      channel,
       kind: "user",
       body: text.trim(),
       created_at: new Date().toISOString(),
@@ -378,6 +421,9 @@ export const useChatbot = () => {
       let threadId = activeThreadId;
 
       if (!threadId || threadId === DRAFT_THREAD_ID) {
+        if (isAdmin) {
+          throw new Error("문의 스레드가 없습니다.");
+        }
         const thread = await createInquiryThread({
           subject: "관리자 문의",
           status: "draft",
@@ -386,13 +432,13 @@ export const useChatbot = () => {
         setActiveThreadId(thread.id);
       }
 
-      const isFirstUserMessage = inquiryDraft;
+      const isFirstUserMessage = !isAdmin && inquiryDraft;
       setInquiryDraft(false);
 
       const sent = await sendInquiryMessage({
         threadId,
         body: text.trim(),
-        channel: "chatbot",
+        channel,
       });
 
       if (isFirstUserMessage) {
@@ -426,15 +472,74 @@ export const useChatbot = () => {
 
   const appendExchange = async (text: string) => {
     if (loadingRef.current) return;
-    if (text === "__inquiry__" || text === "관리자 문의") {
+    if (text === "__inquiry__" || text === "관리자 문의" || text === "문의함") {
       await openInquiryMode();
       return;
     }
 
+    // 날짜를 넣지 않음 → AI가 기간·유형 clarification 으로 묻도록
+    let resolvedText =
+      text === "__leave_apply__" || text === "연차신청"
+        ? "연차 신청하고 싶어요"
+        : text;
+
+    const startOnlyMatch = resolvedText
+      .trim()
+      .match(/^시작일\s+(\d{4}-\d{2}-\d{2})$/);
+    // 시작일 버튼 → 새 말풍선으로 종료일 질문 (이전 말풍선 덮어쓰지 않음)
+    if (startOnlyMatch) {
+      const userMessage: UserChatMessage = {
+        id: createId(),
+        role: "user",
+        text: resolvedText.trim(),
+      };
+      const endAsk: AssistantChatMessage = {
+        id: createId(),
+        role: "assistant",
+        response: {
+          conversation_id: conversationId ?? createId(),
+          type: "clarification",
+          message: "종료일을 선택해주세요.",
+          payload: {
+            missing_fields: ["end_date"],
+            options: [],
+          },
+        },
+      };
+      setFollowUpActions([]);
+      setMessages((prev) => [...prev, userMessage, endAsk]);
+      return;
+    }
+
+    const endOnlyMatch = resolvedText
+      .trim()
+      .match(/^종료일\s+(\d{4}-\d{2}-\d{2})/);
+    if (endOnlyMatch) {
+      const endDate = endOnlyMatch[1];
+      let startDate: string | null = null;
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const m = messages[i];
+        if (m.role !== "user") continue;
+        if (/^시작일\s+\d{4}-\d{2}-\d{2}/.test(m.text.trim())) {
+          startDate = extractIsoDates(m.text)[0] ?? null;
+          break;
+        }
+      }
+      resolvedText =
+        startDate && startDate === endDate
+          ? `${startDate} 연차 신청`
+          : startDate
+            ? `${startDate}부터 ${endDate}까지 연차 신청`
+            : `${endDate} 연차 신청`;
+    }
+
+    // 종료일 버튼: 화면에는 종료일 선택 문구, API에는 시작~종료 합친 문장
+    const displayUserText = endOnlyMatch ? text.trim() : resolvedText;
+
     const userMessage: UserChatMessage = {
       id: createId(),
       role: "user",
-      text,
+      text: displayUserText,
     };
 
     loadingRef.current = true;
@@ -445,7 +550,7 @@ export const useChatbot = () => {
     try {
       const res = await sendAssistantMessage({
         conversation_id: conversationId,
-        message: text,
+        message: resolvedText,
       });
       const data =
         (res as { data: ChatResponseData }).data ??
@@ -531,6 +636,11 @@ export const useChatbot = () => {
         submission_key: submissionKey,
       });
 
+      void queryClient.invalidateQueries({ queryKey: ["leaveBalance"] });
+      void queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
+      void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+
       setMessages((prev) =>
         prev.map((message) => {
           if (message.id !== messageId || message.role !== "assistant") {
@@ -580,7 +690,18 @@ export const useChatbot = () => {
     }
   };
 
+  const followUpForVariant = useMemo(() => {
+    if (!isAdmin) return followUpActions;
+    return followUpActions.map((a) =>
+      a.trigger === "__inquiry__"
+        ? { ...a, label: "문의함" }
+        : a,
+    );
+  }, [followUpActions, isAdmin]);
+
   return {
+    variant,
+    isAdmin,
     open,
     panelMounted,
     panelRef,
@@ -588,7 +709,7 @@ export const useChatbot = () => {
     loading,
     submittingMessageId,
     showQuickActions,
-    followUpActions,
+    followUpActions: followUpForVariant,
     mode,
     inquiryThreads,
     inquiryListHasMore: inquiryThreads.length < inquiryListTotal,
@@ -598,7 +719,13 @@ export const useChatbot = () => {
     inquiryMessages,
     inquiryDraft,
     activeInquiryClosed,
-    ui: CHATBOT_UI,
+    ui: isAdmin
+      ? {
+          ...CHATBOT_UI,
+          inquiry_action: { label: "문의함", trigger: "__inquiry__" },
+          inquiry_hint: "직원 문의에 답변해 주세요",
+        }
+      : CHATBOT_UI,
     handleOpen,
     handleClose,
     handleEndConversation,
@@ -609,6 +736,7 @@ export const useChatbot = () => {
     openInquiryThread,
     startNewInquiry,
     deleteInquiryThread,
+    closeInquiryThread,
     loadMoreInquiryThreads,
     setMode,
   };

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type UIEvent,
 } from "react";
@@ -17,7 +18,10 @@ import {
   Typography,
 } from "@mui/material";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
-import { useChatbot } from "../../hooks/chatbot/useChatbot";
+import {
+  useChatbot,
+  type ChatbotVariant,
+} from "../../hooks/chatbot/useChatbot";
 import type { InquiryThread } from "../../apis/inquiries";
 import { ConfirmModal } from "../components/modal";
 import ChatPanel from "./components/ChatPanel";
@@ -57,8 +61,13 @@ const canDeleteInquiry = (thread: InquiryThread) => {
   return status === "closed" || status === "draft";
 };
 
-const Chatbot = () => {
+type ChatbotProps = {
+  variant?: ChatbotVariant;
+};
+
+const Chatbot = ({ variant = "employee" }: ChatbotProps) => {
   const {
+    isAdmin,
     open,
     panelMounted,
     panelRef,
@@ -71,6 +80,7 @@ const Chatbot = () => {
     inquiryThreads,
     inquiryListHasMore,
     inquiryListLoadingMore,
+    activeThreadId,
     inquiryMessages,
     inquiryDraft,
     activeInquiryClosed,
@@ -85,11 +95,22 @@ const Chatbot = () => {
     openInquiryMode,
     startNewInquiry,
     deleteInquiryThread,
+    closeInquiryThread,
     loadMoreInquiryThreads,
     setMode,
-  } = useChatbot();
+  } = useChatbot({ variant });
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const inquiryBottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (mode !== "inquiry_thread" || !open) return;
+    const id = window.requestAnimationFrame(() => {
+      inquiryBottomRef.current?.scrollIntoView({ behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [mode, open, inquiryMessages.length, inquiryMessages.at(-1)?.id]);
 
   useEffect(() => {
     const onOpenInquiry = (event: Event) => {
@@ -111,7 +132,8 @@ const Chatbot = () => {
   }, [handleOpen, openInquiryMode, openInquiryThread, startNewInquiry]);
 
   const inquiryUnread = inquiryThreads.reduce(
-    (sum, t) => sum + (t.unread_employee ?? 0),
+    (sum, t) =>
+      sum + (isAdmin ? (t.unread_admin ?? 0) : (t.unread_employee ?? 0)),
     0,
   );
 
@@ -138,11 +160,11 @@ const Chatbot = () => {
     return end;
   })();
 
-  /** 챗봇 채팅방: chatbot 채널만 사용자 말풍선 */
-  const isChatbotSide = (m: (typeof inquiryMessages)[number]) =>
-    m.kind === "user" && m.channel === "chatbot";
+  /** 내 계정 쪽 말풍선: 직원=chatbot, 관리자=admin */
+  const isMySide = (m: (typeof inquiryMessages)[number]) =>
+    m.kind === "user" && m.channel === (isAdmin ? "admin" : "chatbot");
 
-  /** 문의함(admin 채널) 답변이 있으면 관리자 연결됨 */
+  /** 문의함(admin 채널) 답변이 있으면 관리자 연결됨 (직원 UI 안내) */
   const hasAssignedAdmin = inquiryMessages.some(
     (m) => m.kind === "user" && m.channel === "admin",
   );
@@ -209,21 +231,47 @@ const Chatbot = () => {
           }}
         >
           <ChatHeader
-            title={mode === "inquiry_list" ? "관리자 문의" : "문의 대화"}
+            title={
+              mode === "inquiry_list"
+                ? isAdmin
+                  ? "문의함"
+                  : "관리자 문의"
+                : isAdmin
+                  ? (inquiryThreads.find((t) => t.id === activeThreadId)
+                      ?.employees?.full_name ?? "문의 답변")
+                  : "문의 대화"
+            }
             subtitle={
               mode === "inquiry_list"
-                ? "목록에서 스레드를 선택하세요"
-                : inquiryDraft
-                  ? "첫 메시지를 보내면 문의가 접수돼요"
-                  : activeInquiryClosed
+                ? isAdmin
+                  ? "진행 중 문의를 선택해 답변하세요"
+                  : "목록에서 스레드를 선택하세요"
+                : isAdmin
+                  ? activeInquiryClosed
                     ? "종료된 문의입니다"
-                    : "HR과 메시지를 주고받아요"
+                    : "직원 문의에 답변합니다"
+                  : inquiryDraft
+                    ? "첫 메시지를 보내면 문의가 접수돼요"
+                    : activeInquiryClosed
+                      ? "종료된 문의입니다"
+                      : "HR과 메시지를 주고받아요"
             }
             onClose={handleClose}
             headerAction={mode === "inquiry_thread" ? "list" : undefined}
             onHeaderAction={
               mode === "inquiry_thread"
                 ? () => void openInquiryMode()
+                : undefined
+            }
+            secondaryAction={
+              isAdmin &&
+              mode === "inquiry_thread" &&
+              !activeInquiryClosed &&
+              !inquiryDraft
+                ? {
+                    label: "문의 종료",
+                    onClick: () => setCloseConfirmOpen(true),
+                  }
                 : undefined
             }
           />
@@ -239,90 +287,112 @@ const Chatbot = () => {
                     color="text.secondary"
                     sx={{ px: 2, py: 2 }}
                   >
-                    아직 문의가 없습니다.
+                    {isAdmin
+                      ? "진행 중인 문의가 없습니다."
+                      : "아직 문의가 없습니다."}
                   </Typography>
                 ) : (
                   <List dense>
-                    {inquiryThreads.map((thread) => (
-                      <ListItemButton
-                        key={thread.id}
-                        onClick={() => void openInquiryThread(thread.id)}
-                        sx={{ alignItems: "flex-start", gap: 0.5 }}
-                      >
-                        <ListItemText
-                          slotProps={{ primary: { component: "div" } }}
-                          primary={
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                                pr: 0.5,
-                              }}
-                            >
-                              <Typography
-                                variant="body2"
+                    {inquiryThreads.map((thread) => {
+                      const unread = isAdmin
+                        ? thread.unread_admin
+                        : thread.unread_employee;
+                      const title = isAdmin
+                        ? (thread.employees?.full_name ?? thread.subject)
+                        : thread.subject;
+                      return (
+                        <ListItemButton
+                          key={thread.id}
+                          onClick={() => void openInquiryThread(thread.id)}
+                          sx={{ alignItems: "flex-start", gap: 0.5 }}
+                        >
+                          <ListItemText
+                            slotProps={{ primary: { component: "div" } }}
+                            primary={
+                              <Box
                                 sx={{
-                                  fontWeight: 600,
-                                  flex: 1,
-                                  minWidth: 0,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  pr: 0.5,
                                 }}
                               >
-                                {thread.subject}
-                              </Typography>
-                              <Chip
-                                size="small"
-                                label={inquiryStatusLabel(
-                                  displayInquiryStatus(thread),
-                                )}
-                                color={inquiryStatusColor(
-                                  displayInquiryStatus(thread),
-                                )}
-                                sx={{ height: 22, fontSize: 11, flexShrink: 0 }}
-                              />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 600,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {title}
+                                </Typography>
+                                {!isAdmin ? (
+                                  <Chip
+                                    size="small"
+                                    label={inquiryStatusLabel(
+                                      displayInquiryStatus(thread),
+                                    )}
+                                    color={inquiryStatusColor(
+                                      displayInquiryStatus(thread),
+                                    )}
+                                    sx={{
+                                      height: 22,
+                                      fontSize: 11,
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                ) : null}
+                              </Box>
+                            }
+                            secondary={
+                              isAdmin
+                                ? `${thread.subject} · ${new Date(
+                                    thread.last_message_at,
+                                  ).toLocaleString("ko-KR")}`
+                                : new Date(
+                                    thread.last_message_at,
+                                  ).toLocaleString("ko-KR")
+                            }
+                          />
+                          {unread > 0 ? (
+                            <Box
+                              sx={{
+                                minWidth: 20,
+                                height: 20,
+                                borderRadius: 999,
+                                bgcolor: "error.main",
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                mt: 0.5,
+                              }}
+                            >
+                              {unread}
                             </Box>
-                          }
-                          secondary={new Date(
-                            thread.last_message_at,
-                          ).toLocaleString("ko-KR")}
-                        />
-                        {thread.unread_employee > 0 ? (
-                          <Box
-                            sx={{
-                              minWidth: 20,
-                              height: 20,
-                              borderRadius: 999,
-                              bgcolor: "error.main",
-                              color: "#fff",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              mt: 0.5,
-                            }}
-                          >
-                            {thread.unread_employee}
-                          </Box>
-                        ) : null}
-                        {canDeleteInquiry(thread) ? (
-                          <IconButton
-                            size="small"
-                            aria-label="문의 삭제"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteTargetId(thread.id);
-                            }}
-                            sx={{ mt: 0.25 }}
-                          >
-                            <DeleteOutlineRoundedIcon fontSize="small" />
-                          </IconButton>
-                        ) : null}
-                      </ListItemButton>
-                    ))}
+                          ) : null}
+                          {!isAdmin && canDeleteInquiry(thread) ? (
+                            <IconButton
+                              size="small"
+                              aria-label="문의 삭제"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteTargetId(thread.id);
+                              }}
+                              sx={{ mt: 0.25 }}
+                            >
+                              <DeleteOutlineRoundedIcon fontSize="small" />
+                            </IconButton>
+                          ) : null}
+                        </ListItemButton>
+                      );
+                    })}
                   </List>
                 )}
                 {inquiryListLoadingMore ? (
@@ -332,17 +402,19 @@ const Chatbot = () => {
                 ) : null}
               </Scroll>
               <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+                {!isAdmin ? (
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    disabled={loading}
+                    onClick={() => void startNewInquiry()}
+                  >
+                    새 문의 시작
+                  </Button>
+                ) : null}
                 <Button
                   fullWidth
-                  variant="contained"
-                  disabled={loading}
-                  onClick={() => void startNewInquiry()}
-                >
-                  새 문의 시작
-                </Button>
-                <Button
-                  fullWidth
-                  sx={{ mt: 1 }}
+                  sx={{ mt: isAdmin ? 0 : 1 }}
                   onClick={() => setMode("assistant")}
                 >
                   HR 도우미로 돌아가기
@@ -364,17 +436,19 @@ const Chatbot = () => {
               >
                 {inquiryMessages.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    문의 내용을 입력해 주세요.
+                    {isAdmin
+                      ? "아직 메시지가 없습니다."
+                      : "문의 내용을 입력해 주세요."}
                   </Typography>
                 ) : null}
                 {inquiryMessages.map((m, index) => (
                   <Box key={m.id} sx={{ display: "contents" }}>
-                    {isChatbotSide(m) ? (
+                    {isMySide(m) ? (
                       <UserMessage text={m.body} />
                     ) : (
                       <AssistantMessage message={m.body} />
                     )}
-                    {index === connectingBlockEndIndex ? (
+                    {!isAdmin && index === connectingBlockEndIndex ? (
                       showInquiryConnecting ? (
                         <ChatbotLoading />
                       ) : showInquiryConnected ? (
@@ -396,19 +470,22 @@ const Chatbot = () => {
                     ) : null}
                   </Box>
                 ))}
+                <div ref={inquiryBottomRef} />
               </Scroll>
               <ChatInput
                 placeholder={
                   activeInquiryClosed
                     ? "종료된 문의입니다"
-                    : "메시지를 입력해 주세요"
+                    : isAdmin
+                      ? "답변을 입력하세요"
+                      : "메시지를 입력해 주세요"
                 }
                 hint={
                   activeInquiryClosed
                     ? "이 문의는 더 이상 이어갈 수 없어요"
                     : ui.inquiry_hint
                 }
-                disabled={loading || activeInquiryClosed}
+                disabled={activeInquiryClosed}
                 onSend={handleSend}
               />
             </>
@@ -422,6 +499,19 @@ const Chatbot = () => {
             confirmColor="error"
             onCancel={() => setDeleteTargetId(null)}
             onConfirm={() => void handleConfirmDelete()}
+          />
+          <ConfirmModal
+            open={closeConfirmOpen}
+            title="문의 종료"
+            message="이 문의를 종료하시겠습니까? 종료 후 직원은 더 이상 메시지를 보낼 수 없습니다."
+            confirmLabel="종료"
+            cancelLabel="취소"
+            confirmColor="error"
+            onCancel={() => setCloseConfirmOpen(false)}
+            onConfirm={() => {
+              setCloseConfirmOpen(false);
+              void closeInquiryThread();
+            }}
           />
         </Paper>
       </>
