@@ -170,6 +170,48 @@ const theme = createTheme({
         },
       },
     },
+    MuiSwitch: {
+      styleOverrides: {
+        root: {
+          width: 46,
+          height: 28,
+          padding: 0,
+          display: "flex",
+        },
+        switchBase: {
+          padding: 3,
+          color: "#FFFFFF",
+          "&.Mui-checked": {
+            transform: "translateX(18px)",
+            color: "#FFFFFF",
+            "& + .MuiSwitch-track": {
+              backgroundColor: sage.main,
+              opacity: 1,
+              border: "none",
+            },
+          },
+          "&.Mui-disabled": {
+            color: "#FFFFFF",
+            "& + .MuiSwitch-track": {
+              opacity: 0.45,
+            },
+          },
+        },
+        thumb: {
+          width: 22,
+          height: 22,
+          boxShadow: "none",
+          backgroundColor: "#FFFFFF",
+        },
+        track: {
+          borderRadius: 999,
+          opacity: 1,
+          backgroundColor: "#D8D2C8",
+          border: "1px solid #ECE7DE",
+          boxSizing: "border-box",
+        },
+      },
+    },
   },
 });
 
