@@ -1,16 +1,33 @@
-import { Box, Typography } from "@mui/material";
+import { Alert, Box, Typography } from "@mui/material";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import {
   LEAVES_CHATBOT_GUIDE,
+  LEAVES_LOAD_ERROR,
   LEAVES_TITLE,
 } from "../../configs/employee/leaves";
 import { useEmployeeLeaves } from "../../hooks/employee/leaves";
 import LeaveBalanceCards from "./components/LeaveBalanceCards";
 import LeaveRequestList from "./components/LeaveRequestList";
+import LeavesSkeleton from "./components/LeavesSkeleton";
 
 const LeavesPage = () => {
-  const { balance, filter, filterOptions, requests, changeFilter } =
-    useEmployeeLeaves();
+  const {
+    balance,
+    filter,
+    filterOptions,
+    requests,
+    isLoading,
+    isError,
+    changeFilter,
+  } = useEmployeeLeaves();
+
+  if (isLoading) {
+    return <LeavesSkeleton />;
+  }
+
+  if (isError || !balance) {
+    return <Alert severity="error">{LEAVES_LOAD_ERROR}</Alert>;
+  }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>

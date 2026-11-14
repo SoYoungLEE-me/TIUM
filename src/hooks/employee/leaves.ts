@@ -1,20 +1,24 @@
 import { useMemo, useState } from "react";
 import { LEAVE_FILTERS } from "../../configs/employee/leaves";
-import leavesMock from "../../mocks/employee/leaves.json";
-import type { LeaveFilter, LeavesData } from "../../models/employee/leaves";
+import type { LeaveFilter } from "../../models/employee/leaves";
 import {
   countByLeaveFilter,
   matchesLeaveFilter,
   sortByCreatedDesc,
+  toLeaveHistoryItem,
 } from "../../utils/employee/leaves";
-
-// TODO: Supabase 연결 후 leave_balances · leave_requests 조회로 교체
-const data = leavesMock as LeavesData;
+import { useLeaveBalance, useMyLeaveRequests } from "../apis/useLeaves";
 
 export const useEmployeeLeaves = () => {
   const [filter, setFilter] = useState<LeaveFilter>("all");
 
-  const sortedRequests = useMemo(() => sortByCreatedDesc(data.requests), []);
+  const balanceQuery = useLeaveBalance();
+  const requestsQuery = useMyLeaveRequests();
+
+  const sortedRequests = useMemo(
+    () => sortByCreatedDesc((requestsQuery.data ?? []).map(toLeaveHistoryItem)),
+    [requestsQuery.data]
+  );
 
   const filteredRequests = useMemo(
     () =>
@@ -32,10 +36,12 @@ export const useEmployeeLeaves = () => {
   );
 
   return {
-    balance: data.balance,
+    balance: balanceQuery.data ?? null,
     filter,
     filterOptions,
     requests: filteredRequests,
+    isLoading: balanceQuery.isLoading || requestsQuery.isLoading,
+    isError: balanceQuery.isError || requestsQuery.isError,
     changeFilter: setFilter,
   };
 };

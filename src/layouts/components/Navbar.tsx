@@ -16,21 +16,16 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import tiumLogo from "../../assets/logo/tium-logo-dark-text.svg";
+import { useMe } from "../../hooks/apis/useMe";
+import { getAvatarInitial } from "../../utils/profile/avatar";
 
 interface NavbarProps {
   showMenuButton: boolean;
   onMenuClick: () => void;
 }
 
-// TODO: Supabase 연결 후 실제 유저 정보로 교체
-const user = {
-  full_name: "이소영",
-  email: "minji.kim@company.com",
-  role: "hr_admin" as "employee" | "hr_admin",
-  department: "개발팀" as string | null,
-};
-
 const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
+  const { data: me } = useMe();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const open = Boolean(anchorEl);
 
@@ -96,7 +91,7 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
               fontWeight: 700,
             }}
           >
-            {user.full_name.slice(0, 1)}
+            {getAvatarInitial(me?.full_name ?? "")}
           </Avatar>
         </IconButton>
 
@@ -111,16 +106,26 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
             paper: { sx: { mt: 1, minWidth: 220, borderRadius: "14px" } },
           }}
         >
-          <Box sx={{ px: 2, py: 1.5 }}>
-            <Typography sx={{ fontWeight: 700 }}>{user.full_name}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {user.department ?? "부서 미지정"} ·{" "}
-              {user.role === "hr_admin" ? "인사 관리자" : "직원"}
+          {me ? (
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography sx={{ fontWeight: 700 }}>{me.full_name}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {me.department ?? "부서 미지정"} ·{" "}
+                {me.role === "hr_admin" ? "인사 관리자" : "직원"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {me.email}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ px: 2, py: 1.5 }}
+            >
+              사용자 정보를 불러오지 못했어요.
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {user.email}
-            </Typography>
-          </Box>
+          )}
 
           <Divider />
 

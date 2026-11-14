@@ -12,14 +12,17 @@ import {
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router";
+import { signIn } from "../../apis/auth";
+import { getMe } from "../../apis/me";
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!email || !password) {
@@ -28,8 +31,19 @@ const LoginPage = () => {
     }
 
     setError(null);
-    // TODO: Supabase 로그인 연결. 지금은 UI 확인용으로 바로 이동
-    navigate("/dashboard");
+    setSubmitting(true);
+    try {
+      await signIn(email, password);
+      // 역할에 맞는 첫 화면으로 이동
+      const me = await getMe();
+      navigate(me.role === "hr_admin" ? "/admin" : "/dashboard", {
+        replace: true,
+      });
+    } catch {
+      setError("이메일 또는 비밀번호가 맞지 않아요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -94,8 +108,14 @@ const LoginPage = () => {
               }
             />
 
-            <Button type="submit" variant="contained" size="large" fullWidth>
-              로그인
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={submitting}
+            >
+              {submitting ? "로그인 중" : "로그인"}
             </Button>
 
             <Typography

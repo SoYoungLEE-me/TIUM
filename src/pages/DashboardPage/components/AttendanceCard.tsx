@@ -1,11 +1,14 @@
 import { Box, Button, Paper, Stack, Typography } from "@mui/material";
-import { DASHBOARD_WORK_HOURS_LABEL } from "../../../configs/employee/dashboard";
 import { formatTime } from "../../../utils/employee/dashboard";
 
 type AttendanceCardProps = {
   checkIn: string | null;
   checkOut: string | null;
   isLate: boolean;
+  /* "기본 근무 09:00 – 18:00" */
+  workHoursLabel: string;
+  /* 출퇴근 요청 중이면 버튼 잠금 */
+  processing?: boolean;
   onCheckIn: () => void;
   onCheckOut: () => void;
 };
@@ -14,6 +17,8 @@ const AttendanceCard = ({
   checkIn,
   checkOut,
   isLate,
+  workHoursLabel,
+  processing = false,
   onCheckIn,
   onCheckOut,
 }: AttendanceCardProps) => {
@@ -46,7 +51,7 @@ const AttendanceCard = ({
           오늘 출퇴근
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          {DASHBOARD_WORK_HOURS_LABEL}
+          {workHoursLabel}
         </Typography>
       </Box>
 
@@ -105,7 +110,7 @@ const AttendanceCard = ({
           color={checkIn ? "secondary" : "primary"}
           size="large"
           fullWidth
-          disabled={Boolean(checkIn)}
+          disabled={processing || Boolean(checkIn)}
           onClick={onCheckIn}
         >
           {checkIn ? "출근 완료" : "출근하기"}
@@ -115,7 +120,7 @@ const AttendanceCard = ({
           color={checkOut ? "secondary" : "primary"}
           size="large"
           fullWidth
-          disabled={!checkIn || Boolean(checkOut)}
+          disabled={processing || !checkIn || Boolean(checkOut)}
           onClick={onCheckOut}
         >
           {checkOut ? "퇴근 완료" : "퇴근하기"}
