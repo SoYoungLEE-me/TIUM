@@ -1,7 +1,7 @@
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import EventNoteRoundedIcon from "@mui/icons-material/EventNoteRounded";
 import TaskAltRoundedIcon from "@mui/icons-material/TaskAltRounded";
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import type { SvgIconComponent } from "@mui/icons-material";
 import type { AdminReviewSummary } from "../../../models/admin/admin";
 
@@ -45,10 +45,13 @@ const cards: Array<{
 
 const ReviewSummaryCards = ({ summary }: ReviewSummaryCardsProps) => {
   return (
-    <Stack
-      direction={{ xs: "column", md: "row" }}
-      spacing={1.5}
-      sx={{ mb: 2.5 }}
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: { xs: 1, sm: 1.5 },
+        mb: 2.5,
+      }}
     >
       {cards.map((card) => {
         const Icon = card.icon;
@@ -57,42 +60,56 @@ const ReviewSummaryCards = ({ summary }: ReviewSummaryCardsProps) => {
             key={card.key}
             variant="outlined"
             sx={{
-              flex: 1,
-              p: 2,
+              p: { xs: 1.25, sm: 2 },
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 2,
+              gap: { xs: 1, sm: 2 },
               bgcolor: "background.paper",
+              minWidth: 0,
             }}
           >
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{ mb: 0.75 }}
+                sx={{
+                  mb: { xs: 0.5, sm: 0.75 },
+                  fontSize: { xs: 12, sm: undefined },
+                  lineHeight: 1.3,
+                }}
+                noWrap
               >
                 {card.title}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
                 <Typography
                   sx={{
-                    fontSize: 28,
+                    fontSize: { xs: 20, sm: 28 },
                     fontWeight: 700,
                     lineHeight: 1.1,
                     color: "text.primary",
                   }}
                 >
-                  {summary[card.key]}
+                  {card.key === "pending_reserved_days"
+                    ? summary.pending_reserved_days.toFixed(1)
+                    : summary[card.key]}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontSize: { xs: 12, sm: undefined } }}
+                >
                   {card.suffix}
                 </Typography>
               </Box>
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{ mt: 0.75 }}
+                sx={{
+                  mt: 0.75,
+                  display: { xs: "none", md: "block" },
+                }}
               >
                 {card.description}
               </Typography>
@@ -100,11 +117,11 @@ const ReviewSummaryCards = ({ summary }: ReviewSummaryCardsProps) => {
 
             <Box
               sx={(theme) => ({
-                width: 44,
-                height: 44,
+                width: { xs: 32, sm: 44 },
+                height: { xs: 32, sm: 44 },
                 borderRadius: 2,
                 flexShrink: 0,
-                display: "inline-flex",
+                display: { xs: "none", sm: "inline-flex" },
                 alignItems: "center",
                 justifyContent: "center",
                 bgcolor:
@@ -121,12 +138,12 @@ const ReviewSummaryCards = ({ summary }: ReviewSummaryCardsProps) => {
                       : theme.palette.warning.main,
               })}
             >
-              <Icon />
+              <Icon fontSize="small" />
             </Box>
           </Paper>
         );
       })}
-    </Stack>
+    </Box>
   );
 };
 

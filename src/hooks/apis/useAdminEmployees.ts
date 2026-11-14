@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createEmployee,
   getAdminEmployeeBalances,
+  getAdminEmployeeLeaveDetail,
   updateEmployeeProfile,
   type CreateEmployeeInput,
   type UpdateEmployeeProfileInput,
@@ -22,6 +23,16 @@ export const useAdminEmployeeBalances = (filters?: {
     queryFn: () => getAdminEmployeeBalances(filters),
   });
 
+export const useAdminEmployeeLeaveDetail = (
+  employeeId: string | null,
+  year: number
+) =>
+  useQuery({
+    queryKey: queryKeys.adminEmployeeLeaveDetail(employeeId ?? "", year),
+    queryFn: () => getAdminEmployeeLeaveDetail(employeeId!, year),
+    enabled: Boolean(employeeId),
+  });
+
 export const useGrantLeave = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -29,6 +40,9 @@ export const useGrantLeave = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ["adminEmployeeBalances"],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["adminEmployeeLeaveDetail"],
       });
     },
   });

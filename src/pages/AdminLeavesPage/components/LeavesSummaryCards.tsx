@@ -1,7 +1,7 @@
 import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import CalendarMonthRoundedIcon from "@mui/icons-material/CalendarMonthRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import type { LeavesPageSummary } from "../../../models/admin/leaves";
 import { formatLeaveDays } from "../../../utils/admin/leaves";
 
@@ -37,10 +37,13 @@ const cards = [
 
 const LeavesSummaryCards = ({ summary }: LeavesSummaryCardsProps) => {
   return (
-    <Stack
-      direction={{ xs: "column", md: "row" }}
-      spacing={1.5}
-      sx={{ mb: 2.5 }}
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        gap: { xs: 1, sm: 1.5 },
+        mb: 2.5,
+      }}
     >
       {cards.map((card) => {
         const Icon = card.icon;
@@ -49,32 +52,45 @@ const LeavesSummaryCards = ({ summary }: LeavesSummaryCardsProps) => {
             key={card.id}
             variant="outlined"
             sx={{
-              flex: 1,
-              p: 2,
+              p: { xs: 1.25, sm: 2 },
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 2,
+              gap: { xs: 1, sm: 2 },
+              minWidth: 0,
             }}
           >
-            <Box>
+            <Box sx={{ minWidth: 0 }}>
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{ mb: 0.5 }}
+                sx={{
+                  mb: 0.5,
+                  fontSize: { xs: 12, sm: undefined },
+                  lineHeight: 1.3,
+                }}
+                noWrap
               >
                 {card.label}
               </Typography>
-              <Typography variant="h2" sx={{ fontWeight: 700 }}>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: 16, sm: undefined },
+                }}
+                noWrap
+              >
                 {card.getValue(summary)}
               </Typography>
             </Box>
             <Box
               sx={(theme) => ({
-                width: 44,
-                height: 44,
+                width: { xs: 32, sm: 44 },
+                height: { xs: 32, sm: 44 },
                 borderRadius: 2,
-                display: "inline-flex",
+                flexShrink: 0,
+                display: { xs: "none", sm: "inline-flex" },
                 alignItems: "center",
                 justifyContent: "center",
                 bgcolor:
@@ -91,12 +107,12 @@ const LeavesSummaryCards = ({ summary }: LeavesSummaryCardsProps) => {
                       : theme.palette.warning.main,
               })}
             >
-              <Icon />
+              <Icon fontSize="small" />
             </Box>
           </Paper>
         );
       })}
-    </Stack>
+    </Box>
   );
 };
 

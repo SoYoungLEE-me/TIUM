@@ -9,16 +9,20 @@ import {
 import type { DecisionInput } from "../../models/apis/admin";
 import { queryKeys } from "./queryKeys";
 
-export const useAdminLeaves = (filters?: {
-  status?: string;
-  search?: string;
-  department?: string;
-  page?: number;
-  page_size?: number;
-}) =>
+export const useAdminLeaves = (
+  filters?: {
+    status?: string;
+    search?: string;
+    department?: string;
+    page?: number;
+    page_size?: number;
+  },
+  options?: { enabled?: boolean }
+) =>
   useQuery({
     queryKey: queryKeys.adminLeaves(filters),
     queryFn: () => getAdminLeaves(filters),
+    enabled: options?.enabled ?? true,
   });
 
 export const useAdminLeave = (requestId: string, enabled = true) =>

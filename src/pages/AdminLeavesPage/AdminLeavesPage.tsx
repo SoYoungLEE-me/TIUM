@@ -1,7 +1,6 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
-  Alert,
   Box,
   Button,
   FormControl,
@@ -13,6 +12,8 @@ import {
   TextField,
 } from "@mui/material";
 import AdminSectionHeader from "../../common/components/Admin/AdminSectionHeader";
+import AnimatedDetailSplit from "../../common/components/Admin/AnimatedDetailSplit";
+import DepartmentSelect from "../../common/components/dropbox/DepartmentSelect";
 import {
   ADMIN_LEAVES_DESCRIPTION,
   ADMIN_LEAVES_DETAIL_ANCHOR_ID,
@@ -26,6 +27,7 @@ import EmployeeLeaveDetailPanel from "./components/EmployeeLeaveDetailPanel";
 import EmployeeLeaveTable from "./components/EmployeeLeaveTable";
 import GrantLeaveDialog from "./components/GrantLeaveDialog";
 import LeavesInfoSection from "./components/LeavesInfoSection";
+import LeavesSkeleton from "./components/LeavesSkeleton";
 import LeavesSummaryCards from "./components/LeavesSummaryCards";
 
 const YEAR_OPTIONS = [DEFAULT_LEAVE_YEAR, DEFAULT_LEAVE_YEAR - 1];
@@ -43,8 +45,8 @@ const AdminLeavesPage = () => {
     grantTarget,
     detailTarget,
     allRows,
-    message,
     error,
+    isLoading,
     setYear,
     setSearch,
     setDepartment,
@@ -64,6 +66,10 @@ const AdminLeavesPage = () => {
     }
   };
 
+  if (isLoading) {
+    return <LeavesSkeleton />;
+  }
+
   return (
     <Box sx={{ maxWidth: ADMIN_LEAVES_MAX_WIDTH, mx: "auto", py: 2 }}>
       <AdminSectionHeader
@@ -82,18 +88,9 @@ const AdminLeavesPage = () => {
 
       <LeavesSummaryCards summary={summary} />
 
-      {message ? (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      ) : null}
-
-      <Stack
-        direction={{ xs: "column", lg: "row" }}
-        spacing={2}
-        sx={{ alignItems: "stretch", minHeight: { lg: 640 } }}
-      >
-        <Box sx={{ flex: 1.55, minWidth: 0 }}>
+      <AnimatedDetailSplit
+        detailAnchorId={ADMIN_LEAVES_DETAIL_ANCHOR_ID}
+        main={
           <EmployeeLeaveTable
             rows={pagedRows}
             totalCount={filteredRows.length}
@@ -126,22 +123,11 @@ const AdminLeavesPage = () => {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" sx={{ minWidth: 140 }}>
-                  <InputLabel id="admin-leave-dept-label">부서</InputLabel>
-                  <Select
-                    labelId="admin-leave-dept-label"
-                    label="부서"
-                    value={filter.department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                  >
-                    <MenuItem value="all">전체 부서</MenuItem>
-                    {departments.map((department) => (
-                      <MenuItem key={department} value={department}>
-                        {department}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <DepartmentSelect
+                  value={filter.department}
+                  departments={departments}
+                  onChange={setDepartment}
+                />
 
                 <TextField
                   size="small"
@@ -162,27 +148,18 @@ const AdminLeavesPage = () => {
               </Stack>
             }
           />
-        </Box>
-
-        {detailTarget ? (
-          <Box
-            id={ADMIN_LEAVES_DETAIL_ANCHOR_ID}
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              maxWidth: { lg: 420 },
-              scrollMarginTop: 16,
-            }}
-          >
+        }
+        detail={
+          detailTarget ? (
             <EmployeeLeaveDetailPanel
-              key={`${detailTarget.employee.id}-${detailTarget.balance.available_days}-${detailTarget.balance.pending_days}`}
+              key={detailTarget.employee.id}
               target={detailTarget}
               onClose={closeDetailDialog}
               onGrant={openGrantDialog}
             />
-          </Box>
-        ) : null}
-      </Stack>
+          ) : null
+        }
+      />
 
       <LeavesInfoSection />
 

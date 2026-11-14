@@ -6,8 +6,8 @@ import { unwrap } from "./apiRequest";
 import { getLeaveBalanceForEmployee } from "./leaves";
 
 /**
- * grant RPC 없음 — HR RLS로 leave_balances.total_days 증가.
- * reason / submission_key 는 BE 필드 없음 → 무시.
+ * grant RPC 없음 — HR RLS로 leave_balances.total_days 증가 + 거래 이력 기록.
+ * submission_key 는 BE 필드 없음 → 무시. reason 은 거래 테이블에 없어 미저장.
  */
 export const grantLeave = async (body: GrantInput): Promise<Balance> => {
   void body.reason;
@@ -31,8 +31,10 @@ export const grantLeave = async (body: GrantInput): Promise<Balance> => {
       .maybeSingle()
   );
 
+  let balanceId: string;
+
   if (!existing) {
-    await unwrap(
+    const created = await unwrap(
       supabase
         .from("leave_balances")
         .insert({
@@ -44,7 +46,16 @@ export const grantLeave = async (body: GrantInput): Promise<Balance> => {
         .select("id")
         .single()
     );
+    if (!created?.id) {
+      throw new ApiRequestError({
+        code: "SUPABASE_ERROR",
+        message: "Failed to create leave balance.",
+        details: {},
+      });
+    }
+    balanceId = created.id as string;
   } else {
+    balanceId = existing.id as string;
     const nextTotal = Number(existing.total_days) + days;
     await unwrap(
       supabase
@@ -53,11 +64,20 @@ export const grantLeave = async (body: GrantInput): Promise<Balance> => {
           total_days: nextTotal,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", existing.id)
+        .eq("id", balanceId)
         .select("id")
         .single()
     );
   }
+
+  await unwrap(
+    supabase.from("leave_balance_transactions").insert({
+      leave_balance_id: balanceId,
+      leave_request_id: null,
+      transaction_type: "grant",
+      amount: days,
+    })
+  );
 
   return getLeaveBalanceForEmployee(employee_id, year);
 };

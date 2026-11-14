@@ -1,5 +1,5 @@
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { Box, Stack, Typography } from "@mui/material";
+import { Alert, Box, Stack, Typography } from "@mui/material";
 import AdminSectionHeader from "../../common/components/Admin/AdminSectionHeader";
 import {
   ADMIN_REVIEW_DESCRIPTION,
@@ -10,6 +10,7 @@ import {
 } from "../../configs/admin/admin";
 import { useAdminLeaveReview } from "../../hooks/admin/useAdmin";
 import { scrollToStackedDetail } from "../../utils/admin/admin";
+import AdminSkeleton from "./components/AdminSkeleton";
 import PendingRequestList from "./components/PendingRequestList";
 import RequestReviewActions from "./components/RequestReviewActions";
 import ReviewSummaryCards from "./components/ReviewSummaryCards";
@@ -17,18 +18,23 @@ import ReviewSummaryCards from "./components/ReviewSummaryCards";
 const AdminPage = () => {
   const {
     filter,
-    filteredRequests,
+    pagedRequests,
+    page,
+    pageCount,
     selectedRequest,
     selectedIndex,
     summary,
     statusCounts,
     departments,
     actionError,
-    actionMessage,
     processing,
+    isLoading,
+    isError,
+    errorMessage,
     setStatusFilter,
     setSearch,
     setDepartment,
+    setPage,
     selectRequest,
     approveRequest,
     rejectRequest,
@@ -39,12 +45,22 @@ const AdminPage = () => {
     scrollToStackedDetail(ADMIN_REVIEW_DETAIL_ANCHOR_ID);
   };
 
+  if (isLoading) {
+    return <AdminSkeleton />;
+  }
+
   return (
     <Box sx={{ maxWidth: ADMIN_REVIEW_MAX_WIDTH, mx: "auto", py: 2 }}>
       <AdminSectionHeader
         title={ADMIN_REVIEW_TITLE}
         description={ADMIN_REVIEW_DESCRIPTION}
       />
+
+      {isError && errorMessage ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errorMessage}
+        </Alert>
+      ) : null}
 
       <ReviewSummaryCards summary={summary} />
 
@@ -55,41 +71,41 @@ const AdminPage = () => {
       >
         <Box sx={{ flex: 1.55, minWidth: 0 }}>
           <PendingRequestList
-            requests={filteredRequests}
+            requests={pagedRequests}
             selectedId={selectedRequest?.id ?? null}
             filter={filter}
             statusCounts={statusCounts}
             departments={departments}
+            page={page}
+            pageCount={pageCount}
             onSelect={handleSelect}
             onStatusChange={setStatusFilter}
             onSearchChange={setSearch}
             onDepartmentChange={setDepartment}
+            onPageChange={setPage}
           />
         </Box>
-        <Box
-          id={ADMIN_REVIEW_DETAIL_ANCHOR_ID}
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            maxWidth: { lg: 420 },
-            scrollMarginTop: 16,
-          }}
-        >
-          <RequestReviewActions
-            key={
-              selectedRequest
-                ? `${selectedRequest.id}-${selectedRequest.status}-${selectedRequest.balance.available_days}-${selectedRequest.balance.pending_days}`
-                : "empty"
-            }
-            request={selectedRequest}
-            selectedIndex={selectedIndex}
-            processing={processing}
-            actionError={actionError}
-            actionMessage={actionMessage}
-            onApprove={approveRequest}
-            onReject={rejectRequest}
-          />
-        </Box>
+        {selectedRequest ? (
+          <Box
+            id={ADMIN_REVIEW_DETAIL_ANCHOR_ID}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              maxWidth: { lg: 420 },
+              scrollMarginTop: 16,
+            }}
+          >
+            <RequestReviewActions
+              key={`${selectedRequest.id}-${selectedRequest.status}-${selectedRequest.balance.available_days}-${selectedRequest.balance.pending_days}`}
+              request={selectedRequest}
+              selectedIndex={selectedIndex}
+              processing={processing}
+              actionError={actionError}
+              onApprove={approveRequest}
+              onReject={rejectRequest}
+            />
+          </Box>
+        ) : null}
       </Stack>
 
       <Stack

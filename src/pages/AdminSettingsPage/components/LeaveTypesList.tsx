@@ -12,7 +12,7 @@ type LeaveTypesListProps = {
   onToggle: (typeId: string) => void;
 };
 
-const LeaveTypesList = ({ types }: LeaveTypesListProps) => {
+const LeaveTypesList = ({ types, onToggle }: LeaveTypesListProps) => {
   return (
     <Paper variant="outlined" sx={{ p: 2.5 }}>
       <Typography variant="h2" sx={{ mb: 1 }}>
@@ -90,7 +90,8 @@ const LeaveTypesList = ({ types }: LeaveTypesListProps) => {
           <Box sx={{ display: "flex", justifyContent: "center" }}>
             <Switch
               checked={type.is_active}
-              disabled
+              disabled={type.name === "연차"}
+              onChange={() => onToggle(type.id)}
               slotProps={{
                 input: { "aria-label": `${type.name} 활성` },
               }}
