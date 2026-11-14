@@ -21,10 +21,10 @@
       "balance": {
         "year": 2026,
         "total_days": 15,
-        "used_days": 4.5,
-        "remaining_days": 10.5,
+        "used_days": 5,
+        "remaining_days": 10,
         "pending_days": 3,
-        "available_days": 7.5
+        "available_days": 7
       }
     },
     {
@@ -33,11 +33,11 @@
       "employee_full_name": "이서연",
       "employee_email": "seoyeon.lee@company.com",
       "department": "디자인팀",
-      "leave_type_id": "type-am-half",
-      "leave_type_name": "오전 반차",
+      "leave_type_id": "type-annual",
+      "leave_type_name": "연차",
       "start_date": "2026-11-12",
       "end_date": "2026-11-12",
-      "total_days": 0.5,
+      "total_days": 1,
       "reason": "병원 진료",
       "status": "pending",
       "approval_type": null,
@@ -50,8 +50,8 @@
         "total_days": 12,
         "used_days": 2,
         "remaining_days": 10,
-        "pending_days": 0.5,
-        "available_days": 9.5
+        "pending_days": 1,
+        "available_days": 9
       }
     },
     {
@@ -87,11 +87,11 @@
       "employee_full_name": "최유진",
       "employee_email": "yujin.choi@company.com",
       "department": "인사팀",
-      "leave_type_id": "type-pm-half",
-      "leave_type_name": "오후 반차",
+      "leave_type_id": "type-annual",
+      "leave_type_name": "연차",
       "start_date": "2026-11-13",
       "end_date": "2026-11-13",
-      "total_days": 0.5,
+      "total_days": 1,
       "reason": "외부 미팅",
       "status": "pending",
       "approval_type": null,
@@ -104,8 +104,8 @@
         "total_days": 15,
         "used_days": 3,
         "remaining_days": 12,
-        "pending_days": 0.5,
-        "available_days": 11.5
+        "pending_days": 1,
+        "available_days": 11
       }
     },
     {
@@ -158,8 +158,8 @@
         "total_days": 12,
         "used_days": 2,
         "remaining_days": 10,
-        "pending_days": 0.5,
-        "available_days": 9.5
+        "pending_days": 1,
+        "available_days": 9
       }
     },
     {
@@ -168,11 +168,11 @@
       "employee_full_name": "박준호",
       "employee_email": "junho.park@company.com",
       "department": "마케팅팀",
-      "leave_type_id": "type-am-half",
-      "leave_type_name": "오전 반차",
+      "leave_type_id": "type-annual",
+      "leave_type_name": "연차",
       "start_date": "2026-11-03",
       "end_date": "2026-11-03",
-      "total_days": 0.5,
+      "total_days": 1,
       "reason": "병원",
       "status": "approved",
       "approval_type": "manual",
@@ -212,8 +212,8 @@
         "total_days": 15,
         "used_days": 3,
         "remaining_days": 12,
-        "pending_days": 0.5,
-        "available_days": 11.5
+        "pending_days": 1,
+        "available_days": 11
       }
     }
   ]

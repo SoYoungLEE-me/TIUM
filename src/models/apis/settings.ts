@@ -1,18 +1,7 @@
-/**
- * 근무 요일 (1=월 … 7=일).
- * 회사마다 근무요일이 다를 수 있어(예: 월~금, 월~토),
- * 연차 일수 산정·근무일 판정·캘린더/근태 기준에 사용한다.
- * work_date(특정 날짜의 근무일)와는 다르다.
- */
-
-export type Workday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
 export type Settings = {
   id: true;
   work_start_time: string;
   work_end_time: string;
-  /** @see Workday — DB/OpenAPI 반영 전까지는 계약 선행 필드 */
-  workdays: Workday[];
   late_threshold: number;
   auto_approval_enabled: boolean;
   updated_at: string;
@@ -48,7 +37,6 @@ export type SettingsUpdate = {
       Settings,
       | "work_start_time"
       | "work_end_time"
-      | "workdays"
       | "late_threshold"
       | "auto_approval_enabled"
     >

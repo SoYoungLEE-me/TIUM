@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   approveAdminLeave,
+  cancelAdminLeave,
   getAdminLeave,
   getAdminLeaves,
   rejectAdminLeave,
@@ -30,13 +31,7 @@ export const useAdminLeave = (requestId: string, enabled = true) =>
 export const useApproveAdminLeave = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      requestId,
-      body,
-    }: {
-      requestId: string;
-      body: DecisionInput;
-    }) => approveAdminLeave(requestId, body),
+    mutationFn: (requestId: string) => approveAdminLeave(requestId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
       void queryClient.invalidateQueries({ queryKey: ["adminLeave"] });
@@ -52,8 +47,19 @@ export const useRejectAdminLeave = () => {
       body,
     }: {
       requestId: string;
-      body: DecisionInput;
+      body?: DecisionInput;
     }) => rejectAdminLeave(requestId, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
+      void queryClient.invalidateQueries({ queryKey: ["adminLeave"] });
+    },
+  });
+};
+
+export const useCancelAdminLeave = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (requestId: string) => cancelAdminLeave(requestId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
       void queryClient.invalidateQueries({ queryKey: ["adminLeave"] });

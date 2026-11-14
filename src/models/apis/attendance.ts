@@ -31,7 +31,10 @@ export type CalendarLeave = {
   approval_type: "auto" | "manual" | null;
 };
 
-/** GET /api/attendance */
+/**
+ * 캘린더 합성 응답 (leaves + settings).
+ * 근태 rpc는 Attendance[]만 반환 — 합성은 페이지/후속 레이어에서 조합.
+ */
 export type AttendanceCalendarData = {
   employee_id: string;
   work_start_time: string;

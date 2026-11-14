@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAdminEmployeeBalances } from "../../apis/adminEmployees";
+import {
+  createEmployee,
+  getAdminEmployeeBalances,
+  updateEmployeeProfile,
+  type CreateEmployeeInput,
+  type UpdateEmployeeProfileInput,
+} from "../../apis/adminEmployees";
 import { grantLeave } from "../../apis/adminLeaveGrants";
 import type { GrantInput } from "../../models/apis/admin";
 import { queryKeys } from "./queryKeys";
@@ -20,6 +26,31 @@ export const useGrantLeave = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: GrantInput) => grantLeave(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["adminEmployeeBalances"],
+      });
+    },
+  });
+};
+
+export const useCreateEmployee = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateEmployeeInput) => createEmployee(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["adminEmployeeBalances"],
+      });
+    },
+  });
+};
+
+export const useUpdateEmployeeProfile = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateEmployeeProfileInput) =>
+      updateEmployeeProfile(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ["adminEmployeeBalances"],

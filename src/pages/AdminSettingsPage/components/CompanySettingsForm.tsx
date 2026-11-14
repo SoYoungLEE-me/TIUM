@@ -8,7 +8,6 @@ import {
 } from "@mui/material";
 import type { CompanySettings } from "../../../models/admin/setting";
 import ThemedTimeField from "./ThemedTimeField";
-import WorkdaysSelector from "./WorkdaysSelector";
 
 type CompanySettingsFormProps = {
   draft: CompanySettings;
@@ -76,11 +75,6 @@ const CompanySettingsForm = ({
           }
           slotProps={{ htmlInput: { min: 0 } }}
           fullWidth
-        />
-
-        <WorkdaysSelector
-          value={draft.workdays}
-          onChange={(workdays) => onChange({ workdays })}
         />
       </Stack>
     </Paper>

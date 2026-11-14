@@ -1,61 +1,65 @@
-import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-} from "axios";
-import { supabase } from "../libs/supabase";
-import {
-  ApiRequestError,
-  type ApiErrorResponse,
-} from "../models/apis/common";
+import type { PostgrestError } from "@supabase/supabase-js";
+import { supabase } from "../libs/supabaseClient";
+import { ApiRequestError } from "../models/apis/common";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "";
+type DataErrorResult<T> = {
+  data: T;
+  error: PostgrestError | null;
+};
 
-export const apiRequest: AxiosInstance = axios.create({
-  baseURL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  timeout: 30_000,
-});
+const toApiError = (
+  error: { message: string; code?: string; details?: string; hint?: string },
+  options?: { status?: number; cause?: unknown; code?: string }
+) =>
+  new ApiRequestError(
+    {
+      code: options?.code ?? error.code ?? "SUPABASE_ERROR",
+      message: error.message || "요청에 실패했습니다.",
+      details: {
+        ...(error.details ? { details: error.details } : {}),
+        ...(error.hint ? { hint: error.hint } : {}),
+      },
+    },
+    { status: options?.status, cause: options?.cause ?? error }
+  );
 
-apiRequest.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+/** Postgrest `{ data, error }` 결과를 통일 처리 */
+export const unwrap = async <T>(
+  result: DataErrorResult<T> | PromiseLike<DataErrorResult<T>>
+): Promise<T> => {
+  const { data, error } = await result;
+  if (error) {
+    throw toApiError(error);
   }
-);
+  return data;
+};
 
-apiRequest.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError<ApiErrorResponse>) => {
-    const payload = error.response?.data?.error;
-    if (payload?.code && payload?.message) {
-      return Promise.reject(
-        new ApiRequestError(
-          {
-            code: payload.code,
-            message: payload.message,
-            details: payload.details ?? {},
-          },
-          { status: error.response?.status, cause: error }
-        )
-      );
-    }
+/** `supabase.rpc` 래퍼 */
+export const rpc = async <T>(
+  fn: string,
+  args?: Record<string, unknown>
+): Promise<T> => {
+  const { data, error } = await supabase.rpc(
+    fn as never,
+    (args ?? {}) as never
+  );
+  if (error) {
+    throw toApiError(error);
+  }
+  return data as T;
+};
 
-    return Promise.reject(
-      new ApiRequestError(
-        {
-          code: "NETWORK_ERROR",
-          message: error.message || "요청에 실패했습니다.",
-          details: {},
-        },
-        { status: error.response?.status, cause: error }
-      )
+/** Edge Function `functions.invoke` 래퍼 */
+export const invokeFunction = async <T>(
+  name: string,
+  body?: Record<string, unknown>
+): Promise<T> => {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (error) {
+    throw toApiError(
+      { message: error.message, code: "FUNCTION_ERROR" },
+      { cause: error, code: "FUNCTION_ERROR" }
     );
   }
-);
+  return data as T;
+};

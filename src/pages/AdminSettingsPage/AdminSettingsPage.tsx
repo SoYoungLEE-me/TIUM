@@ -20,7 +20,7 @@ const AdminSettingsPage = () => {
     updateDraft,
     resetDraft,
     saveCompanySettings,
-    updateMaxConsecutiveDays,
+    updateApprovalRuleLimitsForRule,
     toggleLeaveType,
   } = useAdminSettings();
 
@@ -52,7 +52,7 @@ const AdminSettingsPage = () => {
         <CompanySettingsForm draft={draft} onChange={updateDraft} />
         <ApprovalRulesList
           rules={settings.approval_rules}
-          onMaxConsecutiveDaysChange={updateMaxConsecutiveDays}
+          onApprovalRuleLimitsChange={updateApprovalRuleLimitsForRule}
         />
         <LeaveTypesList
           types={settings.leave_types}

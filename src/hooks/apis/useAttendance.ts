@@ -2,15 +2,29 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   checkIn,
   checkOut,
-  getAttendanceCalendar,
+  getAttendanceRecords,
+  monthToDateRange,
 } from "../../apis/attendance";
 import { queryKeys } from "./queryKeys";
 
-export const useAttendanceCalendar = (month?: string) =>
+export const useAttendanceRecords = (
+  month?: string,
+  employeeId?: string | null,
+) =>
   useQuery({
-    queryKey: queryKeys.attendance(month),
-    queryFn: () => getAttendanceCalendar(month ? { month } : undefined),
+    queryKey: [...queryKeys.attendance(month), employeeId ?? "self"],
+    queryFn: () => {
+      if (!month) {
+        throw new Error("month is required (YYYY-MM)");
+      }
+      const { startDate, endDate } = monthToDateRange(month);
+      return getAttendanceRecords({ startDate, endDate, employeeId });
+    },
+    enabled: Boolean(month),
   });
+
+/** @deprecated use useAttendanceRecords — rpc는 캘린더 합성이 아닌 records만 반환 */
+export const useAttendanceCalendar = useAttendanceRecords;
 
 export const useCheckIn = () => {
   const queryClient = useQueryClient();
