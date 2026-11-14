@@ -1,13 +1,9 @@
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
-  Avatar,
   Box,
   ButtonBase,
-  FormControl,
   InputAdornment,
-  MenuItem,
   Paper,
-  Select,
   Stack,
   Tab,
   Tabs,
@@ -15,18 +11,19 @@ import {
   Typography,
 } from "@mui/material";
 import LeaveStatusChip from "../../../common/components/Admin/LeaveStatusChip";
-import { ADMIN_LEAVE_STATUS_TABS } from "../../../configs/admin/admin";
+import DepartmentSelect from "../../../common/components/dropbox/DepartmentSelect";
+import PaginationBar from "../../../common/components/pagenation";
+import EmployeeProfile from "../../../common/components/profile/EmployeeProfile";
+import {
+  ADMIN_LEAVE_STATUS_TABS,
+  ADMIN_REVIEW_LIST_UNIT_NOTE,
+} from "../../../configs/admin/admin";
 import type {
   AdminLeaveFilter,
   AdminLeaveRequest,
   AdminStatusCounts,
 } from "../../../models/admin/admin";
-import {
-  formatDateTime,
-  formatLeavePeriod,
-  getAvatarColor,
-  getInitials,
-} from "../../../utils/admin/admin";
+import { formatLeavePeriod } from "../../../utils/admin/admin";
 
 type PendingRequestListProps = {
   requests: AdminLeaveRequest[];
@@ -34,10 +31,28 @@ type PendingRequestListProps = {
   filter: AdminLeaveFilter;
   statusCounts: AdminStatusCounts;
   departments: string[];
+  page: number;
+  pageCount: number;
   onSelect: (id: string) => void;
   onStatusChange: (status: AdminLeaveFilter["status"]) => void;
   onSearchChange: (value: string) => void;
   onDepartmentChange: (value: string) => void;
+  onPageChange: (page: number) => void;
+};
+
+/**
+ * 콘텐츠 열 합(200+140+64+88) + gap(12*4) + px(32) ≈ 572
+ * width 100% → 끝 1fr 여백. 더 좁아지면 가로 스크롤.
+ */
+const ROW_MIN_WIDTH = 580;
+
+const ROW_GRID = {
+  display: "grid",
+  gridTemplateColumns: "200px 140px 64px 88px minmax(0, 1fr)",
+  columnGap: 1.5,
+  alignItems: "center",
+  width: "100%",
+  boxSizing: "border-box" as const,
 };
 
 const PendingRequestList = ({
@@ -46,10 +61,13 @@ const PendingRequestList = ({
   filter,
   statusCounts,
   departments,
+  page,
+  pageCount,
   onSelect,
   onStatusChange,
   onSearchChange,
   onDepartmentChange,
+  onPageChange,
 }: PendingRequestListProps) => {
   return (
     <Paper
@@ -111,23 +129,15 @@ const PendingRequestList = ({
             },
           }}
         />
-        <FormControl size="small" sx={{ minWidth: { sm: 140 } }}>
-          <Select
-            value={filter.department}
-            onChange={(e) => onDepartmentChange(e.target.value)}
-            displayEmpty
-          >
-            <MenuItem value="all">전체 부서</MenuItem>
-            {departments.map((department) => (
-              <MenuItem key={department} value={department}>
-                {department}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <DepartmentSelect
+          value={filter.department}
+          departments={departments}
+          onChange={onDepartmentChange}
+          minWidth={{ sm: 140 }}
+        />
       </Stack>
 
-      <Box sx={{ overflow: "auto", flex: 1 }}>
+      <Box sx={{ overflow: "auto", flex: 1, minWidth: 0 }}>
         {requests.length === 0 ? (
           <Box sx={{ p: 3 }}>
             <Typography color="text.secondary">
@@ -135,91 +145,75 @@ const PendingRequestList = ({
             </Typography>
           </Box>
         ) : (
-          requests.map((request) => {
-            const selected = request.id === selectedId;
-            return (
-              <ButtonBase
-                key={request.id}
-                onClick={() => onSelect(request.id)}
-                focusRipple
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "1.4fr 1.3fr 0.7fr 0.8fr 0.9fr",
-                  },
-                  gap: 1,
-                  alignItems: "center",
-                  width: "100%",
-                  px: 2,
-                  py: 1.5,
-                  textAlign: "left",
-                  borderRadius: 0,
-                  borderBottom: "1px solid",
-                  borderColor: "divider",
-                  bgcolor: selected ? "action.selected" : "transparent",
-                  borderLeft: "3px solid",
-                  borderLeftColor: selected ? "primary.main" : "transparent",
-                  transition: (theme) =>
-                    theme.transitions.create("background-color", {
-                      duration: theme.transitions.duration.shortest,
-                    }),
-                  "&:hover": {
-                    bgcolor: selected ? "action.selected" : "action.hover",
-                  },
-                }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1.25}
-                  sx={{ alignItems: "center", minWidth: 0 }}
+          <Box sx={{ width: "100%", minWidth: ROW_MIN_WIDTH }}>
+            {requests.map((request) => {
+              const selected = request.id === selectedId;
+
+              return (
+                <ButtonBase
+                  key={request.id}
+                  onClick={() => onSelect(request.id)}
+                  focusRipple
+                  sx={{
+                    ...ROW_GRID,
+                    px: 2,
+                    py: 1.5,
+                    textAlign: "left",
+                    borderRadius: 0,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: selected ? "action.selected" : "transparent",
+                    borderLeft: "3px solid",
+                    borderLeftColor: selected ? "primary.main" : "transparent",
+                    transition: (theme) =>
+                      theme.transitions.create("background-color", {
+                        duration: theme.transitions.duration.shortest,
+                      }),
+                    "&:hover": {
+                      bgcolor: selected ? "action.selected" : "action.hover",
+                    },
+                  }}
                 >
-                  <Avatar
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      bgcolor: getAvatarColor(request.employee_full_name),
-                    }}
-                  >
-                    {getInitials(request.employee_full_name)}
-                  </Avatar>
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                      {request.employee_full_name}
+                    <EmployeeProfile
+                      name={request.employee_full_name}
+                      subtitle={request.department ?? "-"}
+                      seed={request.employee_id}
+                    />
+                  </Box>
+
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                      {request.leave_type_name}
                     </Typography>
                     <Typography variant="subtitle1" noWrap>
-                      {request.department ?? "-"}
+                      {formatLeavePeriod(request.start_date, request.end_date)}
                     </Typography>
                   </Box>
-                </Stack>
 
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {request.leave_type_name}
+                  <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                    {request.total_days.toFixed(1)}일
                   </Typography>
-                  <Typography variant="subtitle1">
-                    {formatLeavePeriod(request.start_date, request.end_date)}
-                  </Typography>
-                </Box>
 
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {request.total_days.toFixed(1)}일
-                </Typography>
-
-                <Box>
-                  <LeaveStatusChip status={request.status} />
-                </Box>
-
-                <Typography variant="body2" color="text.secondary">
-                  {formatDateTime(request.created_at)}
-                </Typography>
-              </ButtonBase>
-            );
-          })
+                  <Box sx={{ minWidth: 0 }}>
+                    <LeaveStatusChip status={request.status} />
+                  </Box>
+                  <Box aria-hidden sx={{ minWidth: 0 }} />
+                </ButtonBase>
+              );
+            })}
+          </Box>
         )}
       </Box>
+
+      {requests.length > 0 ? (
+        <PaginationBar
+          note={ADMIN_REVIEW_LIST_UNIT_NOTE}
+          page={page}
+          pageCount={pageCount}
+          onPageChange={onPageChange}
+        />
+      ) : null}
     </Paper>
   );
 };

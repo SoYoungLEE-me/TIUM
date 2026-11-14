@@ -1,20 +1,18 @@
 import type { ReactNode } from "react";
 import {
-  Avatar,
   Box,
   Button,
-  ButtonBase,
   Chip,
-  Pagination,
   Paper,
   Stack,
   Typography,
   alpha,
 } from "@mui/material";
+import PaginationBar from "../../../common/components/pagenation";
+import EmployeeProfile from "../../../common/components/profile/EmployeeProfile";
 import { LEAVES_TABLE_UNIT_NOTE } from "../../../configs/admin/leaves";
 import type { EmployeeLeaveRow } from "../../../models/admin/leaves";
-import { getInitials } from "../../../utils/admin/admin";
-import { formatLeaveDays, getAvatarColor } from "../../../utils/admin/leaves";
+import { formatLeaveDays } from "../../../utils/admin/leaves";
 import LeaveUsageGauge from "./LeaveUsageGauge";
 
 type EmployeeLeaveTableProps = {
@@ -30,17 +28,24 @@ type EmployeeLeaveTableProps = {
   onGrant: (employeeId: string) => void;
 };
 
+/**
+ * 콘텐츠 열 합(240+80+64*3+80+100+148) + gap(12*8) + px(40) ≈ 976
+ * width 100% → 끝 1fr이 여백. 컨테이너 < minWidth 이면 가로 스크롤.
+ */
 const ROW_MIN_WIDTH = 980;
 
 const ROW_GRID = {
   display: "grid",
+  // 콘텐츠 열 고정 + 마지막 1fr(공백). 줄어들면 1fr만 줄고, 그 다음 스크롤
   gridTemplateColumns:
-    "minmax(200px, 1.6fr) 100px 72px 72px 72px 88px 110px 140px",
+    "240px 80px 64px 64px 64px 80px 100px 148px minmax(0, 1fr)",
   columnGap: 1.5,
   alignItems: "center",
   width: "100%",
-  minWidth: ROW_MIN_WIDTH,
+  boxSizing: "border-box" as const,
 };
+
+const GridSpacer = () => <Box aria-hidden sx={{ minWidth: 0 }} />;
 
 const EmployeeLeaveTable = ({
   rows,
@@ -57,13 +62,13 @@ const EmployeeLeaveTable = ({
   return (
     <Paper variant="outlined" sx={{ overflow: "hidden", height: "100%" }}>
       <Stack
-        direction={{ xs: "column", sm: "row" }}
+        direction="row"
         spacing={1}
         sx={{
           px: 2.5,
           pt: 2.25,
           pb: 1.5,
-          alignItems: { xs: "flex-start", sm: "center" },
+          alignItems: "center",
           justifyContent: "space-between",
         }}
       >
@@ -100,6 +105,7 @@ const EmployeeLeaveTable = ({
               overflowY: "hidden",
               borderTop: "1px solid",
               borderColor: "divider",
+              minWidth: 0,
               scrollbarWidth: "thin",
               scrollbarColor: `${alpha(theme.palette.primary.main, 0.45)} transparent`,
               "&::-webkit-scrollbar": {
@@ -121,228 +127,205 @@ const EmployeeLeaveTable = ({
           >
             <Box
               sx={{
-                ...ROW_GRID,
-                px: 2.5,
-                py: 1.25,
-                bgcolor: "#F1E8F1",
-                borderBottom: "1px solid",
-                borderColor: "divider",
+                width: "100%",
+                minWidth: ROW_MIN_WIDTH,
               }}
             >
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700 }}
+              <Box
+                sx={{
+                  ...ROW_GRID,
+                  px: 2.5,
+                  py: 1.25,
+                  bgcolor: "#F1E8F1",
+                  borderBottom: "1px solid",
+                  borderColor: "divider",
+                }}
               >
-                직원 / 이메일
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700 }}
-              >
-                부서
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700, textAlign: "right" }}
-              >
-                부여
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700, textAlign: "right" }}
-              >
-                사용
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700, textAlign: "right" }}
-              >
-                잔여
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700, textAlign: "right" }}
-              >
-                검토 대기
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700 }}
-              >
-                신청 가능
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ fontWeight: 700, textAlign: "center" }}
-              >
-                관리
-              </Typography>
-            </Box>
-
-            {rows.map((row) => {
-              const avatar = getAvatarColor(row.employee.id);
-              const selected = row.employee.id === selectedEmployeeId;
-
-              return (
-                <ButtonBase
-                  key={row.employee.id}
-                  focusRipple
-                  onClick={() => onDetail(row.employee.id)}
-                  sx={{
-                    ...ROW_GRID,
-                    px: 2.5,
-                    py: 1.75,
-                    textAlign: "left",
-                    borderRadius: 0,
-                    borderBottom: "1px solid",
-                    borderColor: "divider",
-                    borderLeft: "3px solid",
-                    borderLeftColor: selected ? "primary.main" : "transparent",
-                    bgcolor: selected ? "action.selected" : "transparent",
-                    transition: (theme) =>
-                      theme.transitions.create("background-color", {
-                        duration: theme.transitions.duration.shortest,
-                      }),
-                    "&:hover": {
-                      bgcolor: selected ? "action.selected" : "action.hover",
-                    },
-                  }}
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700 }}
                 >
-                  <Stack
-                    direction="row"
-                    spacing={1.25}
-                    sx={{ alignItems: "center", minWidth: 0 }}
-                  >
-                    <Avatar
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        fontSize: 13,
-                        fontWeight: 700,
-                        bgcolor: avatar.bg,
-                        color: avatar.fg,
-                      }}
-                    >
-                      {getInitials(row.employee.full_name)}
-                    </Avatar>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontWeight: 700 }}
-                        noWrap
-                      >
-                        {row.employee.full_name}
-                      </Typography>
-                      <Typography
-                        variant="subtitle1"
-                        color="text.secondary"
-                        noWrap
-                      >
-                        {row.employee.email}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                  직원 / 이메일
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700 }}
+                >
+                  부서
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, textAlign: "right" }}
+                >
+                  부여
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, textAlign: "right" }}
+                >
+                  사용
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, textAlign: "right" }}
+                >
+                  잔여
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, textAlign: "right" }}
+                >
+                  검토 대기
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700 }}
+                >
+                  신청 가능
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ fontWeight: 700, textAlign: "center" }}
+                >
+                  관리
+                </Typography>
+                <GridSpacer />
+              </Box>
 
-                  <Typography variant="body2" noWrap>
-                    {row.employee.department ?? "-"}
-                  </Typography>
-                  <Typography variant="body2" sx={{ textAlign: "right" }}>
-                    {formatLeaveDays(row.balance.total_days)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ textAlign: "right" }}>
-                    {formatLeaveDays(row.balance.used_days)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ textAlign: "right" }}>
-                    {formatLeaveDays(row.balance.remaining_days)}
-                  </Typography>
-                  <Typography
-                    variant="body2"
+              {rows.map((row) => {
+                const selected = row.employee.id === selectedEmployeeId;
+
+                return (
+                  <Box
+                    role="button"
+                    tabIndex={0}
+                    key={row.employee.id}
+                    onClick={() => onDetail(row.employee.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onDetail(row.employee.id);
+                      }
+                    }}
                     sx={{
-                      textAlign: "right",
-                      color: "warning.main",
-                      fontWeight: 700,
+                      ...ROW_GRID,
+                      px: 2.5,
+                      py: 1.75,
+                      textAlign: "left",
+                      borderRadius: 0,
+                      borderBottom: "1px solid",
+                      borderColor: "divider",
+                      borderLeft: "3px solid",
+                      borderLeftColor: selected
+                        ? "primary.main"
+                        : "transparent",
+                      bgcolor: selected ? "action.selected" : "transparent",
+                      cursor: "pointer",
+                      transition: (theme) =>
+                        theme.transitions.create("background-color", {
+                          duration: theme.transitions.duration.shortest,
+                        }),
+                      "&:hover": {
+                        bgcolor: selected
+                          ? "action.selected"
+                          : "action.hover",
+                      },
                     }}
                   >
-                    {formatLeaveDays(row.balance.pending_days)}
-                  </Typography>
-                  <Box>
-                    <LeaveUsageGauge
-                      availableDays={row.balance.available_days}
-                      totalDays={row.balance.total_days}
-                    />
+                    <Box sx={{ minWidth: 0 }}>
+                      <EmployeeProfile
+                        name={row.employee.full_name}
+                        subtitle={row.employee.email}
+                        seed={row.employee.id}
+                      />
+                    </Box>
+
+                    <Typography variant="body2" noWrap>
+                      {row.employee.department ?? "-"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ textAlign: "right" }}>
+                      {formatLeaveDays(row.balance.total_days)}
+                    </Typography>
+                    <Typography variant="body2" sx={{ textAlign: "right" }}>
+                      {formatLeaveDays(row.balance.used_days)}
+                    </Typography>
+                    <Typography variant="body2" sx={{ textAlign: "right" }}>
+                      {formatLeaveDays(row.balance.remaining_days)}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        textAlign: "right",
+                        color: "warning.main",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {formatLeaveDays(row.balance.pending_days)}
+                    </Typography>
+                    <Box>
+                      <LeaveUsageGauge
+                        availableDays={row.balance.available_days}
+                        totalDays={row.balance.total_days}
+                      />
+                    </Box>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ justifyContent: "center" }}
+                      onClick={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                    >
+                      <Button
+                        size="small"
+                        variant={selected ? "contained" : "outlined"}
+                        color={selected ? "primary" : "inherit"}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDetail(row.employee.id);
+                        }}
+                        sx={
+                          selected
+                            ? undefined
+                            : {
+                                borderColor: "divider",
+                                color: "text.primary",
+                              }
+                        }
+                      >
+                        상세
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onGrant(row.employee.id);
+                        }}
+                      >
+                        부여
+                      </Button>
+                    </Stack>
+                    <GridSpacer />
                   </Box>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{ justifyContent: "center" }}
-                    onClick={(event) => event.stopPropagation()}
-                    onMouseDown={(event) => event.stopPropagation()}
-                  >
-                    <Button
-                      size="small"
-                      variant={selected ? "contained" : "outlined"}
-                      color={selected ? "primary" : "inherit"}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDetail(row.employee.id);
-                      }}
-                      sx={
-                        selected
-                          ? undefined
-                          : {
-                              borderColor: "divider",
-                              color: "text.primary",
-                            }
-                      }
-                    >
-                      상세
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onGrant(row.employee.id);
-                      }}
-                    >
-                      부여
-                    </Button>
-                  </Stack>
-                </ButtonBase>
-              );
-            })}
+                );
+              })}
+            </Box>
           </Box>
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            sx={{
-              px: 2.5,
-              py: 1.75,
-              alignItems: { xs: "stretch", sm: "center" },
-              justifyContent: "space-between",
-            }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              {LEAVES_TABLE_UNIT_NOTE}
-            </Typography>
-            <Pagination
-              count={pageCount}
-              page={page}
-              onChange={(_, next) => onPageChange(next)}
-              shape="rounded"
-              color="primary"
-              size="small"
-            />
-          </Stack>
+          <PaginationBar
+            note={LEAVES_TABLE_UNIT_NOTE}
+            page={page}
+            pageCount={pageCount}
+            onPageChange={onPageChange}
+          />
         </>
       )}
     </Paper>

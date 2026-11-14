@@ -123,11 +123,20 @@ export const getAdminEmployeeBalances = async (params?: {
   let balanceMap = new Map<string, ReturnType<typeof toBalance>>();
 
   if (ids.length > 0) {
-    const balanceResult = await supabase
-      .from("leave_balances")
-      .select("employee_id, year, total_days, used_days")
-      .eq("year", year)
-      .in("employee_id", ids);
+    const [balanceResult, pendingResult] = await Promise.all([
+      supabase
+        .from("leave_balances")
+        .select("employee_id, year, total_days, used_days")
+        .eq("year", year)
+        .in("employee_id", ids),
+      supabase
+        .from("leave_requests")
+        .select("employee_id, total_days")
+        .eq("status", "pending")
+        .in("employee_id", ids)
+        .gte("start_date", `${year}-01-01`)
+        .lte("start_date", `${year}-12-31`),
+    ]);
 
     if (balanceResult.error) {
       throw new ApiRequestError({
@@ -136,17 +145,51 @@ export const getAdminEmployeeBalances = async (params?: {
         details: {},
       });
     }
+    if (pendingResult.error) {
+      throw new ApiRequestError({
+        code: pendingResult.error.code ?? "SUPABASE_ERROR",
+        message: pendingResult.error.message,
+        details: {},
+      });
+    }
+
+    const pendingByEmployee = new Map<string, number>();
+    for (const row of pendingResult.data ?? []) {
+      const employeeId = row.employee_id as string;
+      const days = Number(row.total_days) || 0;
+      pendingByEmployee.set(
+        employeeId,
+        (pendingByEmployee.get(employeeId) ?? 0) + days
+      );
+    }
 
     balanceMap = new Map(
-      (balanceResult.data ?? []).map((row) => [
-        row.employee_id as string,
-        toBalance({
-          year: row.year as number,
-          total_days: row.total_days as number,
-          used_days: row.used_days as number,
-        }),
-      ])
+      (balanceResult.data ?? []).map((row) => {
+        const employeeId = row.employee_id as string;
+        return [
+          employeeId,
+          toBalance(
+            {
+              year: row.year as number,
+              total_days: row.total_days as number,
+              used_days: row.used_days as number,
+            },
+            pendingByEmployee.get(employeeId) ?? 0
+          ),
+        ];
+      })
     );
+
+    // 잔액 행이 없어도 pending만 있는 직원용 스냅샷
+    for (const employeeId of ids) {
+      if (balanceMap.has(employeeId)) continue;
+      const pendingDays = pendingByEmployee.get(employeeId) ?? 0;
+      if (pendingDays <= 0) continue;
+      balanceMap.set(
+        employeeId,
+        toBalance({ year, total_days: 0, used_days: 0 }, pendingDays)
+      );
+    }
   }
 
   const total = count ?? employees.length;

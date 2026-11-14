@@ -14,6 +14,7 @@ import {
   Typography,
   alpha,
 } from "@mui/material";
+import EmployeeProfile from "../../../common/components/profile/EmployeeProfile";
 import LeaveStatusChip from "../../../common/components/Admin/LeaveStatusChip";
 import { LEAVE_HISTORY_EMPTY } from "../../../configs/admin/leaves";
 import type { EmployeeLeaveRow } from "../../../models/admin/leaves";
@@ -79,13 +80,14 @@ const EmployeeLeaveDetailPanel = ({
           borderColor: "divider",
         }}
       >
-        <Box sx={{ minWidth: 0, pr: 1 }}>
-          <Typography sx={{ fontWeight: 700, color: "primary.main" }} noWrap>
-            {employee.full_name}님의 연차
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
-            {balance.year}년 · {employee.department ?? "-"} · {employee.email}
-          </Typography>
+        <Box sx={{ minWidth: 0, pr: 1, flex: 1 }}>
+          <EmployeeProfile
+            name={`${employee.full_name}님의 연차`}
+            subtitle={`${balance.year}년 · ${employee.department ?? "-"} · ${employee.email}`}
+            seed={employee.id}
+            size="medium"
+            nameColor="primary.main"
+          />
         </Box>
         <IconButton aria-label="닫기" onClick={onClose} size="small">
           <CloseRoundedIcon fontSize="small" />

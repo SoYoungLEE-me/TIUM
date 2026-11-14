@@ -24,3 +24,8 @@ export const ADMIN_LEAVE_STATUS_TABS: Array<{
 export const MOCK_REVIEWER_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 export const ADMIN_REVIEW_DETAIL_ANCHOR_ID = "admin-review-detail";
+
+export const ADMIN_REVIEW_PAGE_SIZE = 8;
+
+export const ADMIN_REVIEW_LIST_UNIT_NOTE =
+  "단위: 일 · 1일 단위로 관리합니다.";

@@ -33,15 +33,27 @@ export const formatShortDate = (date: string) => {
 
 export const formatDisplayDate = (date: string) => date.replaceAll("-", ".");
 
-export const formatDateTime = (iso: string | null) => {
-  if (!iso) return "-";
+export const formatDateTimeParts = (iso: string | null) => {
+  if (!iso) return { date: "-", time: "-" };
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
+  if (Number.isNaN(date.getTime())) {
+    return { date: iso, time: "-" };
+  }
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${month}.${day} ${hours}:${minutes}`;
+  return {
+    date: `${month}.${day}`,
+    time: `${hours}:${minutes}`,
+  };
+};
+
+export const formatDateTime = (iso: string | null) => {
+  const { date, time } = formatDateTimeParts(iso);
+  if (date === "-" && time === "-") return "-";
+  if (time === "-") return date;
+  return `${date} ${time}`;
 };
 
 export const formatFullDateTime = (iso: string | null) => {
@@ -138,15 +150,7 @@ export const getDepartmentOptions = (requests: AdminLeaveRequest[]) => {
   return Array.from(departments).sort();
 };
 
-const AVATAR_COLORS = ["#744577", "#2F7A65", "#3F6E3A", "#A8402F", "#6B5D10"];
-
-export const getAvatarColor = (name: string) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-};
+export { getAvatarColor } from "../profile/avatar";
 
 /** lg 미만(세로 스택)일 때만 상세 패널 앵커로 스크롤 */
 export const scrollToStackedDetail = (elementId: string) => {

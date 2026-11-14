@@ -7,7 +7,8 @@ interface PrivateRouteProps {
 }
 
 // TODO: Supabase 연결 후 실제 인증 상태로 교체
-const user: { role: Role } | null = { role: "employee" };
+// TODO: 로그인 연동 후 useMe/authStore role로 교체 (Admin 확인용 임시)
+const user: { role: Role } | null = { role: "hr_admin" };
 
 const PrivateRoute = ({ permissionLevel }: PrivateRouteProps) => {
   if (!user) {

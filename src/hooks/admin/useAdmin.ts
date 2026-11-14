@@ -1,13 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  ADMIN_REVIEW_PAGE_SIZE,
   DEFAULT_ADMIN_LEAVE_STATUS,
-  MOCK_REVIEWER_ID,
 } from "../../configs/admin/admin";
-import adminMock from "../../mocks/admin/admin.json";
+import {
+  useAdminLeave,
+  useAdminLeaves,
+  useApproveAdminLeave,
+  useRejectAdminLeave,
+} from "../apis/useAdminLeaves";
 import type {
   AdminLeaveFilter,
   AdminLeaveRequest,
+  LeaveBalanceSnapshot,
 } from "../../models/admin/admin";
+import type { AdminLeaveListItem } from "../../models/apis/admin";
+import type { Balance } from "../../models/apis/leave";
 import {
   buildAdminReviewSummary,
   buildAdminStatusCounts,
@@ -15,57 +23,155 @@ import {
   filterAdminLeaveRequests,
   getDepartmentOptions,
 } from "../../utils/admin/admin";
-import {
-  applyApproveDeduction,
-  applyRejectRelease,
-} from "../../utils/admin/leaves";
+import { buildLeaveBalanceSnapshot } from "../../utils/admin/leaves";
+import { toast } from "../../common/components/toast";
+import { ApiRequestError } from "../../models/apis/common";
 
-const initialRequests = adminMock.requests as AdminLeaveRequest[];
+const emptyBalance = (year: number): LeaveBalanceSnapshot =>
+  buildLeaveBalanceSnapshot(year, 0, 0, 0);
+
+const toSnapshot = (balance: Balance): LeaveBalanceSnapshot => ({
+  year: balance.year,
+  total_days: balance.total_days,
+  used_days: balance.used_days,
+  remaining_days: balance.remaining_days,
+  pending_days: balance.pending_days,
+  available_days: balance.available_days,
+});
+
+const mapListItem = (
+  item: AdminLeaveListItem,
+  balance?: LeaveBalanceSnapshot
+): AdminLeaveRequest => {
+  const { request, employee } = item;
+  const year = Number(request.start_date.slice(0, 4)) || new Date().getFullYear();
+  return {
+    id: request.id,
+    employee_id: request.employee_id,
+    employee_full_name: employee.full_name,
+    employee_email: employee.email,
+    department: employee.department,
+    leave_type_id: request.leave_type_id,
+    leave_type_name: request.leave_type_name ?? "",
+    start_date: request.start_date,
+    end_date: request.end_date,
+    total_days: request.total_days,
+    reason: request.reason,
+    status: request.status,
+    approval_type: request.approval_type,
+    decision_reason: request.decision_reason,
+    reviewed_by: request.reviewed_by,
+    reviewed_at: request.reviewed_at,
+    created_at: request.created_at,
+    balance: balance ?? emptyBalance(year),
+  };
+};
 
 export const useAdminLeaveReview = () => {
-  const [requests, setRequests] =
-    useState<AdminLeaveRequest[]>(initialRequests);
   const [filter, setFilter] = useState<AdminLeaveFilter>({
     status: DEFAULT_ADMIN_LEAVE_STATUS,
     search: "",
     department: "all",
   });
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => initialRequests.find((r) => r.status === "pending")?.id ?? null,
-  );
+  const [page, setPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
+
+  // status/department/search는 클라이언트에서만 필터 — 요약·탭 카운트가 항상 전체 기준
+  const leavesQuery = useAdminLeaves({ page_size: 100 });
+  const detailQuery = useAdminLeave(selectedId ?? "", Boolean(selectedId));
+  const approveMutation = useApproveAdminLeave();
+  const rejectMutation = useRejectAdminLeave();
+
+  const requests = useMemo(() => {
+    const items = leavesQuery.data?.data ?? [];
+    return items.map((item) => {
+      const mapped = mapListItem(item);
+      if (
+        selectedId &&
+        item.request.id === selectedId &&
+        detailQuery.data?.balance
+      ) {
+        return {
+          ...mapped,
+          ...mapListItem(item, toSnapshot(detailQuery.data.balance)),
+          status: detailQuery.data.request.status,
+          decision_reason: detailQuery.data.request.decision_reason,
+          reviewed_by: detailQuery.data.request.reviewed_by,
+          reviewed_at: detailQuery.data.request.reviewed_at,
+          approval_type: detailQuery.data.request.approval_type,
+        };
+      }
+      return mapped;
+    });
+  }, [leavesQuery.data, selectedId, detailQuery.data]);
 
   const summary = useMemo(() => buildAdminReviewSummary(requests), [requests]);
   const statusCounts = useMemo(
     () => buildAdminStatusCounts(requests),
-    [requests],
+    [requests]
   );
   const departments = useMemo(() => getDepartmentOptions(requests), [requests]);
 
   const filteredRequests = useMemo(
     () => filterAdminLeaveRequests(requests, filter),
-    [requests, filter],
+    [requests, filter]
   );
 
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredRequests.length / ADMIN_REVIEW_PAGE_SIZE)
+  );
+  const safePage = Math.min(page, pageCount);
+  const pagedRequests = useMemo(() => {
+    const start = (safePage - 1) * ADMIN_REVIEW_PAGE_SIZE;
+    return filteredRequests.slice(start, start + ADMIN_REVIEW_PAGE_SIZE);
+  }, [filteredRequests, safePage]);
+
+  // 목록 맨 위 항목을 기본 선택. 필터 결과 없으면 선택 해제
+  useEffect(() => {
+    if (filteredRequests.length === 0) {
+      if (selectedId !== null) {
+        setSelectedId(null);
+        setActionError(null);
+        setActionMessage(null);
+      }
+      return;
+    }
+
+    const stillVisible = filteredRequests.some(
+      (request) => request.id === selectedId
+    );
+    if (!stillVisible) {
+      setSelectedId(filteredRequests[0].id);
+      setActionError(null);
+      setActionMessage(null);
+    }
+  }, [filteredRequests, selectedId]);
+
   const selectedRequest =
-    requests.find((request) => request.id === selectedId) ?? null;
+    filteredRequests.find((request) => request.id === selectedId) ?? null;
 
   const selectedIndex = selectedRequest
-    ? requests.findIndex((request) => request.id === selectedRequest.id)
+    ? filteredRequests.findIndex(
+        (request) => request.id === selectedRequest.id
+      )
     : -1;
 
   const setStatusFilter = (status: AdminLeaveFilter["status"]) => {
     setFilter((prev) => ({ ...prev, status }));
+    setPage(1);
   };
 
   const setSearch = (search: string) => {
     setFilter((prev) => ({ ...prev, search }));
+    setPage(1);
   };
 
   const setDepartment = (department: string) => {
     setFilter((prev) => ({ ...prev, department }));
+    setPage(1);
   };
 
   const selectRequest = (id: string) => {
@@ -74,114 +180,80 @@ export const useAdminLeaveReview = () => {
     setActionMessage(null);
   };
 
-  const syncEmployeeBalances = (
-    list: AdminLeaveRequest[],
-    employeeId: string,
-    nextBalance: AdminLeaveRequest["balance"],
-  ) =>
-    list.map((request) =>
-      request.employee_id === employeeId
-        ? { ...request, balance: nextBalance }
-        : request,
-    );
-
-  const approveRequest = async (reason: string) => {
+  const approveRequest = async (_reason: string) => {
     if (!selectedRequest || selectedRequest.status !== "pending") return;
-    setProcessing(true);
-    setActionError(null);
-    setActionMessage(null);
 
     if (
       !canApproveExcludingSelfPending(
         selectedRequest.balance,
-        selectedRequest.total_days,
+        selectedRequest.total_days
       )
     ) {
-      setActionError("잔여 연차가 부족하여 승인할 수 없습니다.");
-      setProcessing(false);
+      const msg = "잔여 연차가 부족하여 승인할 수 없습니다.";
+      setActionError(msg);
+      toast.warning(msg);
       return;
     }
 
-    const nextBalance = applyApproveDeduction(
-      selectedRequest.balance,
-      selectedRequest.total_days,
-    );
-    const reviewedAt = new Date().toISOString();
-
-    setRequests((prev) => {
-      const updated = prev.map(
-        (request): AdminLeaveRequest =>
-          request.id === selectedRequest.id
-            ? {
-                ...request,
-                status: "approved",
-                approval_type: "manual",
-                decision_reason: reason.trim() || "HR 수동 승인",
-                reviewed_by: MOCK_REVIEWER_ID,
-                reviewed_at: reviewedAt,
-                balance: nextBalance,
-              }
-            : request,
-      );
-
-      return syncEmployeeBalances(
-        updated,
-        selectedRequest.employee_id,
-        nextBalance,
-      );
-    });
-
-    setActionMessage("승인 처리되었습니다. (mock)");
-    setProcessing(false);
+    setActionError(null);
+    setActionMessage(null);
+    try {
+      await approveMutation.mutateAsync(selectedRequest.id);
+      setActionMessage(null);
+      toast.success("승인 처리되었습니다.");
+      void leavesQuery.refetch();
+      void detailQuery.refetch();
+    } catch (err) {
+      const msg =
+        err instanceof ApiRequestError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "승인에 실패했습니다.";
+      setActionError(msg);
+      toast.error(msg);
+    }
   };
 
   const rejectRequest = async (reason: string) => {
     if (!selectedRequest || selectedRequest.status !== "pending") return;
     const trimmed = reason.trim();
     if (!trimmed) {
-      setActionError("반려 사유를 입력해 주세요.");
+      const msg = "반려 사유를 입력해 주세요.";
+      setActionError(msg);
+      toast.warning(msg);
       return;
     }
 
-    setProcessing(true);
     setActionError(null);
     setActionMessage(null);
-
-    const nextBalance = applyRejectRelease(
-      selectedRequest.balance,
-      selectedRequest.total_days,
-    );
-    const reviewedAt = new Date().toISOString();
-
-    setRequests((prev) => {
-      const updated = prev.map(
-        (request): AdminLeaveRequest =>
-          request.id === selectedRequest.id
-            ? {
-                ...request,
-                status: "rejected",
-                approval_type: "manual",
-                decision_reason: trimmed,
-                reviewed_by: MOCK_REVIEWER_ID,
-                reviewed_at: reviewedAt,
-                balance: nextBalance,
-              }
-            : request,
-      );
-      return syncEmployeeBalances(
-        updated,
-        selectedRequest.employee_id,
-        nextBalance,
-      );
-    });
-
-    setActionMessage("반려 처리되었습니다. (mock)");
-    setProcessing(false);
+    try {
+      await rejectMutation.mutateAsync({
+        requestId: selectedRequest.id,
+        body: { reason: trimmed },
+      });
+      setActionMessage(null);
+      toast.success("반려 처리되었습니다.");
+      void leavesQuery.refetch();
+      void detailQuery.refetch();
+    } catch (err) {
+      const msg =
+        err instanceof ApiRequestError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "반려에 실패했습니다.";
+      setActionError(msg);
+      toast.error(msg);
+    }
   };
 
   return {
     filter,
     filteredRequests,
+    pagedRequests,
+    page: safePage,
+    pageCount,
     selectedRequest,
     selectedIndex,
     summary,
@@ -189,10 +261,19 @@ export const useAdminLeaveReview = () => {
     departments,
     actionError,
     actionMessage,
-    processing,
+    processing: approveMutation.isPending || rejectMutation.isPending,
+    isLoading: leavesQuery.isLoading,
+    isError: leavesQuery.isError,
+    errorMessage:
+      leavesQuery.error instanceof Error
+        ? leavesQuery.error.message
+        : leavesQuery.isError
+          ? "목록을 불러오지 못했습니다."
+          : null,
     setStatusFilter,
     setSearch,
     setDepartment,
+    setPage,
     selectRequest,
     approveRequest,
     rejectRequest,

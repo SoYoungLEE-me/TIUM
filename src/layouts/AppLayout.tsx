@@ -4,8 +4,7 @@ import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from "react-router";
 import Chatbot from "../common/chatbot/Chatbot";
 import Scroll from "../common/scroll/scroll";
-import adminMock from "../mocks/admin/admin.json";
-import type { AdminLeaveRequest } from "../models/admin/admin";
+import { useAdminLeaves } from "../hooks/apis/useAdminLeaves";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 
@@ -21,15 +20,18 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const pendingLeavesQuery = useAdminLeaves(
+    { status: "pending", page_size: 100 },
+    { enabled: variant === "admin" },
+  );
+
   const adminMenuItems = useMemo(() => {
-    const pendingCount = (adminMock.requests as AdminLeaveRequest[]).filter(
-      (request) => request.status === "pending"
-    ).length;
+    const pendingCount = pendingLeavesQuery.data?.data.length ?? 0;
 
     return ADMIN_MENU.map((item) =>
-      item.path === "/admin" ? { ...item, badge: pendingCount } : item
+      item.path === "/admin" ? { ...item, badge: pendingCount } : item,
     );
-  }, []);
+  }, [pendingLeavesQuery.data]);
 
   return (
     <Box

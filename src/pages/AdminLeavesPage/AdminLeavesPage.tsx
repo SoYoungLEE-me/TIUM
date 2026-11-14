@@ -1,7 +1,6 @@
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
-  Alert,
   Box,
   Button,
   FormControl,
@@ -13,6 +12,7 @@ import {
   TextField,
 } from "@mui/material";
 import AdminSectionHeader from "../../common/components/Admin/AdminSectionHeader";
+import DepartmentSelect from "../../common/components/dropbox/DepartmentSelect";
 import {
   ADMIN_LEAVES_DESCRIPTION,
   ADMIN_LEAVES_DETAIL_ANCHOR_ID,
@@ -26,6 +26,7 @@ import EmployeeLeaveDetailPanel from "./components/EmployeeLeaveDetailPanel";
 import EmployeeLeaveTable from "./components/EmployeeLeaveTable";
 import GrantLeaveDialog from "./components/GrantLeaveDialog";
 import LeavesInfoSection from "./components/LeavesInfoSection";
+import LeavesSkeleton from "./components/LeavesSkeleton";
 import LeavesSummaryCards from "./components/LeavesSummaryCards";
 
 const YEAR_OPTIONS = [DEFAULT_LEAVE_YEAR, DEFAULT_LEAVE_YEAR - 1];
@@ -43,8 +44,8 @@ const AdminLeavesPage = () => {
     grantTarget,
     detailTarget,
     allRows,
-    message,
     error,
+    isLoading,
     setYear,
     setSearch,
     setDepartment,
@@ -64,6 +65,10 @@ const AdminLeavesPage = () => {
     }
   };
 
+  if (isLoading) {
+    return <LeavesSkeleton />;
+  }
+
   return (
     <Box sx={{ maxWidth: ADMIN_LEAVES_MAX_WIDTH, mx: "auto", py: 2 }}>
       <AdminSectionHeader
@@ -81,12 +86,6 @@ const AdminLeavesPage = () => {
       />
 
       <LeavesSummaryCards summary={summary} />
-
-      {message ? (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      ) : null}
 
       <Stack
         direction={{ xs: "column", lg: "row" }}
@@ -126,22 +125,11 @@ const AdminLeavesPage = () => {
                   </Select>
                 </FormControl>
 
-                <FormControl size="small" sx={{ minWidth: 140 }}>
-                  <InputLabel id="admin-leave-dept-label">부서</InputLabel>
-                  <Select
-                    labelId="admin-leave-dept-label"
-                    label="부서"
-                    value={filter.department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                  >
-                    <MenuItem value="all">전체 부서</MenuItem>
-                    {departments.map((department) => (
-                      <MenuItem key={department} value={department}>
-                        {department}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <DepartmentSelect
+                  value={filter.department}
+                  departments={departments}
+                  onChange={setDepartment}
+                />
 
                 <TextField
                   size="small"
