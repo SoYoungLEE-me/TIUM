@@ -3,6 +3,7 @@ import { DAY_STATUS_STYLE } from "../../../configs/employee/attendance";
 import type { CalendarDay } from "../../../models/employee/attendance";
 import {
   formatDayLabel,
+  formatMinutes,
   formatWorkDuration,
   getLateMinutes,
 } from "../../../utils/employee/attendance";
@@ -136,7 +137,11 @@ const AttendanceDayDetail = ({
             }
           />
           {lateMinutes > 0 && (
-            <DetailRow label="지각" value={`${lateMinutes}분`} highlight />
+            <DetailRow
+              label="지각"
+              value={formatMinutes(lateMinutes)}
+              highlight
+            />
           )}
         </Box>
       ) : (

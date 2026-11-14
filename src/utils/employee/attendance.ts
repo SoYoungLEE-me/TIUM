@@ -88,10 +88,14 @@ const getDayStatus = (
   record: AttendanceRecord | null,
   leave: CalendarLeave | null
 ): DayStatus => {
-  if (isWeekend) return "weekend";
-  if (leave) return leave.status === "approved" ? "leave" : "leave_pending";
+  // 연차는 평일에만 칠한다 (주말이 낀 연차 기간은 주말 칸으로 둔다)
+  if (leave && !isWeekend) {
+    return leave.status === "approved" ? "leave" : "leave_pending";
+  }
+  // 주말이라도 출퇴근 기록이 있으면 보여주도록 수정
   if (record?.status === "late") return "late";
   if (record?.check_in) return "present";
+  if (isWeekend) return "weekend";
   return "none";
 };
 
@@ -150,3 +154,10 @@ export const buildAttendanceSummary = (
     },
     { present: 0, late: 0, leave: 0 }
   );
+
+export const formatMinutes = (minutes: number) => {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}분`;
+  return rest === 0 ? `${hours}시간` : `${hours}시간 ${rest}분`;
+};
