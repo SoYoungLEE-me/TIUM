@@ -1,4 +1,3 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -27,10 +26,7 @@ Deno.serve(async (req: Request) => {
 
   // POST 요청만 허용
   if (req.method !== "POST") {
-    return jsonResponse(
-      { error: "Method not allowed." },
-      405,
-    );
+    return jsonResponse({ error: "Method not allowed." }, 405);
   }
 
   try {
@@ -45,20 +41,14 @@ Deno.serve(async (req: Request) => {
     if (!supabaseUrl || !anonKey || !adminKey) {
       console.error("Missing Supabase environment variables.");
 
-      return jsonResponse(
-        { error: "Server configuration error." },
-        500,
-      );
+      return jsonResponse({ error: "Server configuration error." }, 500);
     }
 
     // 2. 요청한 사용자의 JWT 추출 및 유효성 검사
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader?.startsWith("Bearer ")) {
-      return jsonResponse(
-        { error: "Authentication required." },
-        401,
-      );
+      return jsonResponse({ error: "Authentication required." }, 401);
     }
 
     const token = authHeader.replace("Bearer ", "");
@@ -83,15 +73,13 @@ Deno.serve(async (req: Request) => {
     } = await callerClient.auth.getUser(token);
 
     if (authError || !user) {
-      return jsonResponse(
-        { error: "Invalid authentication." },
-        401,
-      );
+      return jsonResponse({ error: "Invalid authentication." }, 401);
     }
 
     // 3. 요청한 사용자의 역할 확인
-    const { data: callerRole, error: roleError } =
-      await callerClient.rpc("get_current_user_role");
+    const { data: callerRole, error: roleError } = await callerClient.rpc(
+      "get_current_user_role",
+    );
 
     // HR 관리자만 직원 생성 기능을 사용할 수 있도록 제한
     if (roleError || callerRole !== "hr_admin") {
@@ -102,29 +90,36 @@ Deno.serve(async (req: Request) => {
     }
 
     // 4. 요청 본문 데이터 유효성 검사
-    const body = await req.json();
+    let body: Record<string, unknown>;
+
+    try {
+      const parsedBody = await req.json();
+
+      if (
+        !parsedBody ||
+        typeof parsedBody !== "object" ||
+        Array.isArray(parsedBody)
+      ) {
+        return jsonResponse({ error: "Invalid request body." }, 400);
+      }
+
+      body = parsedBody as Record<string, unknown>;
+    } catch {
+      return jsonResponse({ error: "Invalid JSON request body." }, 400);
+    }
 
     const fullName =
-      typeof body.full_name === "string"
-        ? body.full_name.trim()
-        : "";
+      typeof body.full_name === "string" ? body.full_name.trim() : "";
 
     const email =
-      typeof body.email === "string"
-        ? body.email.trim().toLowerCase()
-        : "";
+      typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
 
     const department =
-      typeof body.department === "string"
-        ? body.department.trim()
-        : null;
+      typeof body.department === "string" ? body.department.trim() : null;
 
     // 이름과 이메일은 필수 입력 항목
     if (!fullName || !email) {
-      return jsonResponse(
-        { error: "Full name and email are required." },
-        400,
-      );
+      return jsonResponse({ error: "Full name and email are required." }, 400);
     }
 
     // 이름과 이메일의 최대 길이 제한 확인
@@ -137,10 +132,7 @@ Deno.serve(async (req: Request) => {
 
     // 이메일 주소 형식 확인
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return jsonResponse(
-        { error: "Invalid email address." },
-        400,
-      );
+      return jsonResponse({ error: "Invalid email address." }, 400);
     }
 
     // 부서명 최대 길이 확인
@@ -167,7 +159,30 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    // 6. 직원 초대 이메일 발송 및 Supabase Auth 계정 생성
+    // 6. 기존 직원 이메일 중복 확인
+    const { data: existingEmployee, error: duplicateError } = await adminClient
+      .from("employees")
+      .select("id")
+      .ilike("email", email.replace(/[\\%_]/g, "\\$&"))
+      .maybeSingle();
+
+    if (duplicateError) {
+      console.error("Employee email duplicate check failed:", duplicateError);
+
+      return jsonResponse(
+        { error: "Unable to validate the email address." },
+        500,
+      );
+    }
+
+    if (existingEmployee) {
+      return jsonResponse(
+        { error: "An employee with this email already exists." },
+        409,
+      );
+    }
+
+    // 7. 직원 초대 이메일 발송 및 Supabase Auth 계정 생성
     const { data: inviteData, error: inviteError } =
       await adminClient.auth.admin.inviteUserByEmail(email, {
         data: {
@@ -187,19 +202,18 @@ Deno.serve(async (req: Request) => {
 
     const newUserId = inviteData.user.id;
 
-    // 7. employees 테이블에 직원 프로필 생성
-    const { data: employee, error: insertError } =
-      await adminClient
-        .from("employees")
-        .insert({
-          id: newUserId,
-          full_name: fullName,
-          email,
-          role: "employee",
-          department: department || null,
-        })
-        .select("id, full_name, email, role, department, created_at")
-        .single();
+    // 8. employees 테이블에 직원 프로필 생성
+    const { data: employee, error: insertError } = await adminClient
+      .from("employees")
+      .insert({
+        id: newUserId,
+        full_name: fullName,
+        email,
+        role: "employee",
+        department: department || null,
+      })
+      .select("id, full_name, email, role, department, created_at")
+      .single();
 
     // 직원 프로필 저장 실패 시 처리
     if (insertError || !employee) {
@@ -219,7 +233,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 8. 생성된 직원 정보 반환
+    // 9. 생성된 직원 정보 반환
     return jsonResponse(
       {
         message: "Employee invitation sent successfully.",
@@ -231,9 +245,6 @@ Deno.serve(async (req: Request) => {
     // 예상하지 못한 서버 오류 처리
     console.error("Unexpected create-employee error:", error);
 
-    return jsonResponse(
-      { error: "An unexpected server error occurred." },
-      500,
-    );
+    return jsonResponse({ error: "An unexpected server error occurred." }, 500);
   }
 });

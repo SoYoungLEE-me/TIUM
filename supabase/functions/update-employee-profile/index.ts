@@ -36,7 +36,6 @@ Deno.serve(async (req: Request) => {
 
     if (!supabaseUrl || !anonKey || !adminKey) {
       console.error("Missing Supabase environment variables.");
-
       return jsonResponse({ error: "Server configuration error." }, 500);
     }
 
@@ -49,7 +48,6 @@ Deno.serve(async (req: Request) => {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // HR 관리자의 JWT를 사용하는 클라이언트
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: {
         headers: {
@@ -115,6 +113,7 @@ Deno.serve(async (req: Request) => {
     // 5. 허용된 수정 필드만 추출
     const updates: {
       full_name?: string;
+      email?: string;
       department?: string | null;
     } = {};
 
@@ -138,6 +137,31 @@ Deno.serve(async (req: Request) => {
       updates.full_name = fullName;
     }
 
+    if ("email" in body) {
+      if (typeof body.email !== "string" || !body.email.trim()) {
+        return jsonResponse(
+          { error: "Email must be a non-empty string." },
+          400,
+        );
+      }
+
+      const email = body.email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailRegex.test(email)) {
+        return jsonResponse({ error: "A valid email is required." }, 400);
+      }
+
+      if (email.length > 255) {
+        return jsonResponse(
+          { error: "Email must be 255 characters or fewer." },
+          400,
+        );
+      }
+
+      updates.email = email;
+    }
+
     if ("department" in body) {
       if (body.department !== null && typeof body.department !== "string") {
         return jsonResponse(
@@ -159,14 +183,12 @@ Deno.serve(async (req: Request) => {
       updates.department = department || null;
     }
 
-    if (Object.keys(updates).length === 0) {
-      return jsonResponse(
-        { error: "At least one profile field must be provided." },
-        400,
-      );
-    }
-
-    const allowedFields = ["employee_id", "full_name", "department"];
+    const allowedFields = [
+      "employee_id",
+      "full_name",
+      "email",
+      "department",
+    ];
 
     const invalidFields = Object.keys(body).filter(
       (key) => !allowedFields.includes(key),
@@ -179,7 +201,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 6. 관리자 권한으로 직원 프로필 수정
+    if (Object.keys(updates).length === 0) {
+      return jsonResponse(
+        { error: "At least one profile field must be provided." },
+        400,
+      );
+    }
+
+    // 6. 관리자 권한으로 직원 정보 조회
     const adminClient = createClient(supabaseUrl, adminKey, {
       auth: {
         autoRefreshToken: false,
@@ -187,6 +216,73 @@ Deno.serve(async (req: Request) => {
       },
     });
 
+    const { data: existingEmployee, error: employeeError } =
+      await adminClient
+        .from("employees")
+        .select("id, email")
+        .eq("id", employeeId)
+        .maybeSingle();
+
+    if (employeeError) {
+      console.error("Employee lookup failed:", employeeError);
+      return jsonResponse(
+        { error: "Unable to retrieve the employee profile." },
+        500,
+      );
+    }
+
+    if (!existingEmployee) {
+      return jsonResponse({ error: "Employee profile not found." }, 404);
+    }
+
+    // 7. 이메일 중복 확인
+    const emailChanged =
+      updates.email !== undefined &&
+      updates.email !== existingEmployee.email;
+
+    if (emailChanged) {
+      const { data: duplicateEmployee, error: duplicateError } =
+        await adminClient
+          .from("employees")
+          .select("id")
+          .ilike("email", updates.email!.replace(/[\\%_]/g, "\\$&"))
+          .neq("id", employeeId)
+          .maybeSingle();
+
+      if (duplicateError) {
+        console.error("Email duplicate check failed:", duplicateError);
+        return jsonResponse(
+          { error: "Unable to validate the email address." },
+          500,
+        );
+      }
+
+      if (duplicateEmployee) {
+        return jsonResponse(
+          { error: "This email address is already in use." },
+          409,
+        );
+      }
+    }
+
+    // 8. Supabase Auth 이메일 변경
+    if (emailChanged) {
+      const { error: authUpdateError } =
+        await adminClient.auth.admin.updateUserById(employeeId, {
+          email: updates.email!,
+          email_confirm: true,
+        });
+
+      if (authUpdateError) {
+        console.error("Auth email update failed:", authUpdateError);
+        return jsonResponse(
+          { error: "Unable to update the employee authentication email." },
+          500,
+        );
+      }
+    }
+
+    // 9. 직원 프로필 수정
     const { data: employee, error: updateError } = await adminClient
       .from("employees")
       .update(updates)
@@ -194,8 +290,25 @@ Deno.serve(async (req: Request) => {
       .select("id, full_name, email, role, department, created_at")
       .maybeSingle();
 
-    if (updateError) {
+    if (updateError || !employee) {
       console.error("Employee profile update failed:", updateError);
+
+      // DB 변경 실패 시 Auth 이메일 복구
+      if (emailChanged) {
+        const { error: rollbackError } =
+          await adminClient.auth.admin.updateUserById(employeeId, {
+            email: existingEmployee.email,
+            email_confirm: true,
+          });
+
+        if (rollbackError) {
+          console.error("Auth email rollback failed:", rollbackError);
+        }
+      }
+
+      if (!updateError && !employee) {
+        return jsonResponse({ error: "Employee profile not found." }, 404);
+      }
 
       return jsonResponse(
         { error: "Unable to update the employee profile." },
@@ -203,11 +316,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!employee) {
-      return jsonResponse({ error: "Employee profile not found." }, 404);
-    }
-
-    // 7. 수정된 직원 프로필 반환
+    // 10. 수정된 직원 프로필 반환
     return jsonResponse(
       {
         message: "Employee profile updated successfully.",
@@ -217,7 +326,6 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error) {
     console.error("Unexpected update-employee-profile error:", error);
-
     return jsonResponse({ error: "An unexpected server error occurred." }, 500);
   }
 });
