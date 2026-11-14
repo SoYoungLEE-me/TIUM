@@ -30,7 +30,8 @@ const mapInquiryThread = (row: InquiryThreadRow): InquiryThread => {
   const hasUserMessage = (row.inquiry_messages ?? []).some(
     (m) => m.kind === "user",
   );
-  const { inquiry_messages: _msgs, ...rest } = row;
+  const { inquiry_messages: msgs, ...rest } = row;
+  console.log(msgs);
   // 사용자 메시지 없는 open → UI/삭제 기준상 draft
   const status: InquiryThreadStatus =
     rest.status === "open" && !hasUserMessage ? "draft" : rest.status;

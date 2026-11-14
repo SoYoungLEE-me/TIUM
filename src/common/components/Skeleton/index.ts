@@ -1,9 +1,13 @@
 export { SkeletonActionBar } from "./SkeletonActionBar";
+export { SkeletonCalendarGrid } from "./SkeletonCalendarGrid";
+export { SkeletonCardHeader } from "./SkeletonCardHeader";
 export { SkeletonDetailPanel } from "./SkeletonDetailPanel";
 export { SkeletonFieldRow } from "./SkeletonFieldRow";
 export { SkeletonFormCard } from "./SkeletonFormCard";
+export { SkeletonInfoRows } from "./SkeletonInfoRows";
 export { SkeletonListRows } from "./SkeletonListRows";
 export { SkeletonPageHeader } from "./SkeletonPageHeader";
+export { SkeletonStatCards } from "./SkeletonStatCards";
 export { SkeletonSummaryCards } from "./SkeletonSummaryCards";
 export { SkeletonSwitchRow } from "./SkeletonSwitchRow";
 export { SkeletonTableRows } from "./SkeletonTableRows";

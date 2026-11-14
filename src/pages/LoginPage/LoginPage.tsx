@@ -11,15 +11,23 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useNavigate } from "react-router";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router";
+import { signIn } from "../../apis/auth";
+import { getMe } from "../../apis/me";
+import tiumLogo from "../../assets/logo/tium-logo-dark-text.svg";
+import { queryKeys } from "../../hooks/apis/queryKeys";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!email || !password) {
@@ -28,8 +36,21 @@ const LoginPage = () => {
     }
 
     setError(null);
-    // TODO: Supabase 로그인 연결. 지금은 UI 확인용으로 바로 이동
-    navigate("/dashboard");
+    setSubmitting(true);
+    try {
+      await signIn(email, password);
+      // 역할에 맞는 첫 화면으로 이동
+      const me = await getMe();
+      // 라우트 가드가 같은 정보를 다시 조회하지 않도록 캐시에 넣어두기
+      queryClient.setQueryData(queryKeys.me, me);
+      navigate(me.role === "hr_admin" ? "/admin" : "/dashboard", {
+        replace: true,
+      });
+    } catch {
+      setError("이메일 또는 비밀번호가 맞지 않아요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -53,6 +74,31 @@ const LoginPage = () => {
       >
         <Box component="form" noValidate onSubmit={handleSubmit}>
           <Stack spacing={2.5}>
+            {/* 랜딩페이지로 돌아가기 */}
+            <Button
+              component={Link}
+              to="/"
+              variant="text"
+              size="small"
+              startIcon={<ArrowBackRoundedIcon />}
+              sx={{
+                alignSelf: "flex-start",
+                ml: -1,
+                color: "text.secondary",
+                fontWeight: 600,
+              }}
+            >
+              처음 화면으로
+            </Button>
+
+            {/* 로고 */}
+            <Box
+              component="img"
+              src={tiumLogo}
+              alt="TIUM"
+              sx={{ height: 36, width: "auto", alignSelf: "flex-start" }}
+            />
+
             <Box>
               <Typography variant="h1" component="h1" sx={{ fontSize: 26 }}>
                 로그인
@@ -94,8 +140,14 @@ const LoginPage = () => {
               }
             />
 
-            <Button type="submit" variant="contained" size="large" fullWidth>
-              로그인
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={submitting}
+            >
+              {submitting ? "로그인 중" : "로그인"}
             </Button>
 
             <Typography

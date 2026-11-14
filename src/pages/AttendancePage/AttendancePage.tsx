@@ -1,11 +1,13 @@
-import { Box, Typography } from "@mui/material";
+import { Alert, Box, Typography } from "@mui/material";
 import {
   ATTENDANCE_DESCRIPTION,
+  ATTENDANCE_LOAD_ERROR,
   ATTENDANCE_TITLE,
 } from "../../configs/employee/attendance";
 import { useEmployeeAttendance } from "../../hooks/employee/attendance";
 import AttendanceCalendar from "./components/AttendanceCalendar";
 import AttendanceDayDetail from "./components/AttendanceDayDetail";
+import AttendanceSkeleton from "./components/AttendanceSkeleton";
 import AttendanceSummaryCards from "./components/AttendanceSummaryCards";
 
 const AttendancePage = () => {
@@ -16,11 +18,21 @@ const AttendancePage = () => {
     selectedDay,
     workStartTime,
     isThisMonth,
+    isLoading,
+    isError,
     selectDate,
     goPrevMonth,
     goNextMonth,
     goThisMonth,
   } = useEmployeeAttendance();
+
+  if (isLoading) {
+    return <AttendanceSkeleton />;
+  }
+
+  if (isError) {
+    return <Alert severity="error">{ATTENDANCE_LOAD_ERROR}</Alert>;
+  }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>

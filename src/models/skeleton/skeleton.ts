@@ -11,3 +11,11 @@ export type SkeletonPageHeaderProps = {
 export type SkeletonFormCardProps = {
   children: ReactNode;
 };
+
+export type SkeletonStatCardsProps = SkeletonCountProps & {
+  inline?: boolean;
+};
+
+export type SkeletonCardHeaderProps = {
+  withAction?: boolean;
+};

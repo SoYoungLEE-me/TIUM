@@ -8,34 +8,34 @@ import type {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** (2026, 11, 5) → "2026-11-05" */
+/* (2026, 11, 5) → "2026-11-05" */
 export const toDateKey = (year: number, month: number, day: number) =>
   `${year}-${pad(month)}-${pad(day)}`;
 
-/** 회사 시간대 기준 오늘 (YYYY-MM-DD) */
+/* 회사 시간대 기준 오늘 (YYYY-MM-DD) */
 export const getTodayKey = () =>
   new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
 
-/** "2026-11" → { year: 2026, month: 11 } */
+/* "2026-11" → { year: 2026, month: 11 } */
 export const parseMonthKey = (monthKey: string) => {
   const [year, month] = monthKey.split("-").map(Number);
   return { year, month };
 };
 
-/** "2026-11", +1 → "2026-12" */
+/* "2026-11", +1 → "2026-12" */
 export const shiftMonth = (monthKey: string, diff: number) => {
   const { year, month } = parseMonthKey(monthKey);
   const date = new Date(year, month - 1 + diff, 1);
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
 };
 
-/** "2026-11" → "2026년 11월" */
+/* "2026-11" → "2026년 11월" */
 export const formatMonthLabel = (monthKey: string) => {
   const { year, month } = parseMonthKey(monthKey);
   return `${year}년 ${month}월`;
 };
 
-/** "2026-11-09" → "11월 9일 (월)" */
+/* "2026-11-09" → "11월 9일 (월)" */
 export const formatDayLabel = (dateKey: string) => {
   const [year, month, day] = dateKey.split("-").map(Number);
   return new Date(year, month - 1, day).toLocaleDateString("ko-KR", {
@@ -45,7 +45,7 @@ export const formatDayLabel = (dateKey: string) => {
   });
 };
 
-/** 출근~퇴근 → "8시간 07분" */
+/* 출근~퇴근 → "8시간 07분" */
 export const formatWorkDuration = (
   checkIn: string | null,
   checkOut: string | null
@@ -58,7 +58,7 @@ export const formatWorkDuration = (
   return `${Math.floor(minutes / 60)}시간 ${pad(minutes % 60)}분`;
 };
 
-/** 지각 분 (기본 출근 시각 기준) */
+/* 지각 분 (기본 출근 시각 기준) */
 export const getLateMinutes = (
   checkIn: string | null,
   workStartTime: string
@@ -88,14 +88,18 @@ const getDayStatus = (
   record: AttendanceRecord | null,
   leave: CalendarLeave | null
 ): DayStatus => {
-  if (isWeekend) return "weekend";
-  if (leave) return leave.status === "approved" ? "leave" : "leave_pending";
+  // 연차는 평일에만 칠한다 (주말이 낀 연차 기간은 주말 칸으로 둔다)
+  if (leave && !isWeekend) {
+    return leave.status === "approved" ? "leave" : "leave_pending";
+  }
+  // 주말이라도 출퇴근 기록이 있으면 보여주도록 수정
   if (record?.status === "late") return "late";
   if (record?.check_in) return "present";
+  if (isWeekend) return "weekend";
   return "none";
 };
 
-/**
+/*
  * 월요일 시작 캘린더 칸 목록
  * 앞뒤 빈칸은 null (7개씩 끊으면 한 주)
  */
@@ -137,7 +141,7 @@ export const buildCalendarDays = (
   return cells;
 };
 
-/** 한 달 상태 집계 */
+/* 한 달 상태 집계 */
 export const buildAttendanceSummary = (
   days: Array<CalendarDay | null>
 ): AttendanceSummary =>
@@ -150,3 +154,10 @@ export const buildAttendanceSummary = (
     },
     { present: 0, late: 0, leave: 0 }
   );
+
+export const formatMinutes = (minutes: number) => {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}분`;
+  return rest === 0 ? `${hours}시간` : `${hours}시간 ${rest}분`;
+};
