@@ -4,6 +4,7 @@ import LoadingSpinner from "../common/components/Loading/LoadingSpinner";
 const AppLayout = React.lazy(() => import("../layouts/AppLayout"));
 const PrivateRoute = React.lazy(() => import("./PrivateRoute"));
 const PublicRoute = React.lazy(() => import("./PublicRouter"));
+const SessionRoute = React.lazy(() => import("./SessionRoute"));
 
 const LandingPage = React.lazy(
   () => import("../pages/LandingPage/LandingPage")
@@ -16,7 +17,9 @@ const AttendancePage = React.lazy(
   () => import("../pages/AttendancePage/AttendancePage")
 );
 const LeavesPage = React.lazy(() => import("../pages/LeavesPage/LeavesPage"));
-const SignupPage = React.lazy(() => import("../pages/SignupPage/SignupPage"));
+const SetPasswordPage = React.lazy(
+  () => import("../pages/SetPasswordPage/SetPasswordPage")
+);
 const AdminPage = React.lazy(() => import("../pages/AdminPage/AdminPage"));
 const AdminLeavesPage = React.lazy(
   () => import("../pages/AdminLeavesPage/AdminLeavesPage")
@@ -36,7 +39,11 @@ const AppRouter = () => {
         <Route element={<PublicRoute />}>
           <Route index element={<LandingPage />} />
           <Route path="login" element={<LoginPage />} />
-          <Route path="signup" element={<SignupPage />} />
+        </Route>
+
+        {/* 초대 메일 링크로 들어온 직원 — 로그인 세션만 확인 */}
+        <Route element={<SessionRoute />}>
+          <Route path="set-password" element={<SetPasswordPage />} />
         </Route>
 
         {/* 직원 로그인 후 — AppLayout*/}
