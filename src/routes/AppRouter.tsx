@@ -44,6 +44,10 @@ const AppRouter = () => {
         {/* 초대 메일 링크로 들어온 직원 — 로그인 세션만 확인 */}
         <Route element={<SessionRoute />}>
           <Route path="set-password" element={<SetPasswordPage />} />
+          <Route
+            path="change-password"
+            element={<SetPasswordPage mode="change" />}
+          />
         </Route>
 
         {/* 직원 로그인 후 — AppLayout*/}

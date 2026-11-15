@@ -17,6 +17,7 @@ import {
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import LockResetRoundedIcon from "@mui/icons-material/LockResetRounded";
 import tiumLogo from "../../assets/logo/tium-logo-dark-text.svg";
 import { useMe } from "../../hooks/apis/useMe";
 import { useAuthStore } from "../../stores/authStore";
@@ -46,6 +47,12 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
     queryClient.clear();
     navigate("/login", { replace: true });
   };
+
+  const handleChangePassword = () => {
+    handleClose();
+    navigate("/change-password");
+  };
+
   return (
     <AppBar
       position="sticky"
@@ -136,7 +143,12 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
           )}
 
           <Divider />
-
+          <MenuItem onClick={handleChangePassword}>
+            <ListItemIcon>
+              <LockResetRoundedIcon fontSize="small" />
+            </ListItemIcon>
+            비밀번호 변경
+          </MenuItem>
           <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
             <ListItemIcon sx={{ color: "inherit" }}>
               <LogoutRoundedIcon fontSize="small" />
