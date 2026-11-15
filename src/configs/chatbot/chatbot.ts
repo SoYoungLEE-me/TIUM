@@ -12,6 +12,11 @@ export const CHATBOT_UI = {
     { label: "연차신청", trigger: "__leave_apply__" },
   ],
   inquiry_action: { label: "관리자 문의", trigger: "__inquiry__" },
+  /** blocked 등에서 연차 신청을 유형 선택부터 다시 시작 */
+  restart_leave_action: {
+    label: "처음부터 신청하기",
+    trigger: "__leave_restart__",
+  },
   tooltip: "연차, 편하게 물어보세요",
   header_title: "HR 도우미",
   header_subtitle: "연차와 회사 규정을 도와드려요",

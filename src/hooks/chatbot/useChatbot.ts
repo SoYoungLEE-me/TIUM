@@ -35,7 +35,11 @@ import type {
 } from "../../models/chatbot/chatbot";
 import { ApiRequestError } from "../../models/apis/common";
 import { toast } from "../../common/components/toast";
-import { createId, extractIsoDates } from "../../utils/chatbot/chatbot";
+import {
+  createId,
+  extractIsoDates,
+  normalizeLeaveChatResponse,
+} from "../../utils/chatbot/chatbot";
 
 export type ChatbotMode = "assistant" | "inquiry_list" | "inquiry_thread";
 export type ChatbotVariant = "employee" | "admin";
@@ -494,11 +498,16 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
       return;
     }
 
+    const isLeaveRestart =
+      text === "__leave_restart__" || text === "처음부터 신청하기";
+
     // 날짜를 넣지 않음 → AI가 기간·유형 clarification 으로 묻도록
     let resolvedText =
       text === "__leave_apply__" || text === "연차신청"
         ? "연차 신청하고 싶어요"
-        : text;
+        : isLeaveRestart
+          ? "신청 내용을 수정하고 싶어요. 날짜와 유형을 다시 알려주세요."
+          : text;
 
     const startOnlyMatch = resolvedText
       .trim()
@@ -550,8 +559,12 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
             : `${endDate} 연차 신청`;
     }
 
-    // 종료일 버튼: 화면에는 종료일 선택 문구, API에는 시작~종료 합친 문장
-    const displayUserText = endOnlyMatch ? text.trim() : resolvedText;
+    // 종료일/재신청 버튼: 화면 문구와 API 문장을 분리
+    const displayUserText = endOnlyMatch
+      ? text.trim()
+      : isLeaveRestart
+        ? "처음부터 신청하기"
+        : resolvedText;
 
     const userMessage: UserChatMessage = {
       id: createId(),
@@ -569,9 +582,10 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
         conversation_id: conversationId,
         message: resolvedText,
       });
-      const data =
+      const raw =
         (res as { data: ChatResponseData }).data ??
         (res as unknown as ChatResponseData);
+      const data = normalizeLeaveChatResponse(raw);
 
       const assistantMessage: AssistantChatMessage = {
         id: createId(),
@@ -582,7 +596,16 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
       setConversationId(data.conversation_id);
       setMessages((prev) => [...prev, assistantMessage]);
 
-      if (data.type === "blocked" || data.type === "answer") {
+      if (data.type === "blocked") {
+        setFollowUpActions(
+          isAdmin
+            ? [{ ...CHATBOT_UI.inquiry_action }]
+            : [
+                { ...CHATBOT_UI.restart_leave_action },
+                { ...CHATBOT_UI.inquiry_action },
+              ],
+        );
+      } else if (data.type === "answer") {
         setFollowUpActions([{ ...CHATBOT_UI.inquiry_action }]);
       } else {
         setFollowUpActions([]);
@@ -608,7 +631,14 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
         },
       };
       setMessages((prev) => [...prev, assistantMessage]);
-      setFollowUpActions([{ ...CHATBOT_UI.inquiry_action }]);
+      setFollowUpActions(
+        isAdmin
+          ? [{ ...CHATBOT_UI.inquiry_action }]
+          : [
+              { ...CHATBOT_UI.restart_leave_action },
+              { ...CHATBOT_UI.inquiry_action },
+            ],
+      );
     } finally {
       loadingRef.current = false;
       setLoading(false);
@@ -625,9 +655,7 @@ export const useChatbot = (opts?: { variant?: ChatbotVariant }) => {
 
   const handleEditLeave = async (_messageId: string) => {
     void _messageId;
-    await appendExchange(
-      "신청 내용을 수정하고 싶어요. 날짜와 유형을 다시 알려주세요.",
-    );
+    await appendExchange("__leave_restart__");
   };
 
   const handleSubmitLeave = async (

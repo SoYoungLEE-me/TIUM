@@ -23,10 +23,11 @@ option label은 "연차 (최소 신청 단위: 1일)" 형식(차감/단순 단�
 사용자가 시작일만 알려주면 종료일을 물으세요(missing_fields: ["end_date"], options=[]).
 날짜 단계 options는 항상 [].
 범위 밖(급여·타인정보·승인대행 등)이면 "제가 처리할 수 없거나 진행할 수 없는 사안이에요. 관리자 문의로 남겨 주세요."라고 안내하세요.
+prepare_leave_request 결과에 can_submit=false이거나 reason_codes/review_reasons에 EXCEEDS_MAX_CONSECUTIVE_DAYS가 있으면 leave_confirmation이 아니라 blocked로 답하고, 회사 연속 신청 한도 초과로 신청할 수 없다고 안내하세요. 기간을 줄여 다시 알려달라고 하세요.
 최종 답변은 반드시 아래 JSON 하나만 출력하세요(다른 텍스트 금지):
 {"type":"answer"|"clarification"|"leave_confirmation"|"blocked","message":"...","payload":{...}}
 clarification options의 value는 leave_type_id(uuid)를 쓰세요(날짜 단계에서는 options=[]).
-leave_confirmation payload는 prepare_leave_request 결과를 그대로 넣으세요.
+leave_confirmation payload는 prepare_leave_request 결과를 그대로 넣으세요(can_submit=true인 경우만).
 blocked는 reason_codes 배열을 포함하세요.`;
 
 const TOOL_DECLARATIONS = [
@@ -436,28 +437,45 @@ function parseAssistantJson(text: string): Record<string, unknown> | null {
     if (!parsed.payload || typeof parsed.payload !== "object") {
       parsed.payload = {};
     }
-    // prepare 결과가 can_submit false면 blocked로 정규화 가능
-    if (
-      parsed.type === "leave_confirmation" &&
-      parsed.payload &&
-      (parsed.payload as { can_submit?: boolean }).can_submit === false
-    ) {
+    // prepare 결과가 제출 불가면 blocked로 정규화
+    if (parsed.type === "leave_confirmation" && parsed.payload) {
       const p = parsed.payload as {
+        can_submit?: boolean;
         reason_codes?: string[];
         review_reasons?: string[];
         available_days?: number;
         requested_days?: number;
         total_days?: number;
+        max_consecutive_days?: number;
+        start_date?: string;
+        end_date?: string;
+        balance?: { available_days?: number };
       };
-      return {
-        type: "blocked",
-        message: String(parsed.message),
-        payload: {
-          reason_codes: p.reason_codes ?? p.review_reasons ?? [],
-          available_days: p.available_days,
-          requested_days: p.requested_days ?? p.total_days,
-        },
-      };
+      const reasons = [
+        ...(p.reason_codes ?? []),
+        ...(p.review_reasons ?? []),
+      ];
+      const exceeds = reasons.includes("EXCEEDS_MAX_CONSECUTIVE_DAYS");
+      if (p.can_submit === false || exceeds) {
+        const days = p.requested_days ?? p.total_days;
+        const maxDays = p.max_consecutive_days;
+        const message = exceeds
+          ? maxDays != null
+            ? `요청하신 기간(총 ${days}일)은 회사의 최대 연속 신청 일수(${maxDays}일)를 초과해 신청할 수 없어요. 기간을 줄여서 다시 알려 주세요.`
+            : `요청하신 기간(총 ${days}일)은 회사의 최대 연속 신청 일수를 초과해 신청할 수 없어요. 기간을 줄여서 다시 알려 주세요.`
+          : String(parsed.message);
+        return {
+          type: "blocked",
+          message,
+          payload: {
+            reason_codes: exceeds
+              ? ["EXCEEDS_MAX_CONSECUTIVE_DAYS"]
+              : (p.reason_codes ?? p.review_reasons ?? []),
+            available_days: p.available_days ?? p.balance?.available_days,
+            requested_days: days,
+          },
+        };
+      }
     }
     return parsed;
   } catch {

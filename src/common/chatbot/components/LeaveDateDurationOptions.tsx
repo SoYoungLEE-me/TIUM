@@ -68,14 +68,15 @@ const LeaveDateDurationOptions = ({
     staleTime: 60_000,
   });
 
-  const approvedQuery = useQuery({
-    queryKey: ["leaveRequests", "approvedDates"],
+  const blockedDatesQuery = useQuery({
+    queryKey: ["leaveRequests", "blockedDates"],
     queryFn: async () => {
       const rows = await getMyLeaveRequests({ page: 1, page_size: 100 });
       const blocked = new Set<string>();
       const horizon = seoulDatePlusDays(120);
       for (const row of rows) {
-        if (row.status !== "approved") continue;
+        // 승인·검토 대기 일정은 선택지에서 제외
+        if (row.status !== "approved" && row.status !== "pending") continue;
         for (const d of eachDateInclusive(row.start_date, row.end_date)) {
           if (d <= horizon) blocked.add(d);
         }
@@ -85,7 +86,7 @@ const LeaveDateDurationOptions = ({
     staleTime: 30_000,
   });
 
-  if (rulesQuery.isLoading || approvedQuery.isLoading) {
+  if (rulesQuery.isLoading || blockedDatesQuery.isLoading) {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
         <CircularProgress size={16} />
@@ -93,10 +94,10 @@ const LeaveDateDurationOptions = ({
     );
   }
 
-  const blocked = approvedQuery.data ?? new Set<string>();
+  const blocked = blockedDatesQuery.data ?? new Set<string>();
 
   if (mode === "start") {
-    // 당일 제외: 오늘 + min_notice 부터, 승인된 날은 건너뛰며 3개 수집
+    // 당일 제외: 오늘 + min_notice 부터, 승인/검토대기 날은 건너뛰며 3개 수집
     const baseOffset = Math.max(1, rulesQuery.data?.minNoticeDays ?? 1);
     const dates: string[] = [];
     for (let i = 0; dates.length < START_BUTTON_COUNT && i < 60; i += 1) {
@@ -138,14 +139,14 @@ const LeaveDateDurationOptions = ({
     Math.max(1, rulesQuery.data?.maxConsecutiveDays ?? MAX_END_BUTTONS),
   );
 
-  // 시작일 ~ 시작일+(연속한도-1), 최대 4개. 구간에 승인일이 있으면 그 지점에서 중단
+  // 시작일 ~ 시작일+(연속한도-1), 최대 4개. 구간에 승인/검토대기일이 있으면 그 지점에서 중단
   const endDates: string[] = [];
   for (let offset = 0; offset < maxSpan; offset += 1) {
     const date = addDaysToIso(base, offset);
-    const spanHasApproved = eachDateInclusive(base, date).some((d) =>
+    const spanBlocked = eachDateInclusive(base, date).some((d) =>
       blocked.has(d),
     );
-    if (spanHasApproved) break;
+    if (spanBlocked) break;
     endDates.push(date);
   }
 
