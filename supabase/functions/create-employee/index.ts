@@ -78,14 +78,14 @@ Deno.serve(async (req: Request) => {
 
     // 3. 요청한 사용자의 역할 확인
     const { data: callerRole, error: roleError } = await callerClient.rpc(
-      "get_current_user_role",
+      "get_current_user_role"
     );
 
     // HR 관리자만 직원 생성 기능을 사용할 수 있도록 제한
     if (roleError || callerRole !== "hr_admin") {
       return jsonResponse(
         { error: "Only HR administrators can create employees." },
-        403,
+        403
       );
     }
 
@@ -126,7 +126,7 @@ Deno.serve(async (req: Request) => {
     if (fullName.length > 100 || email.length > 255) {
       return jsonResponse(
         { error: "Input exceeds the maximum allowed length." },
-        400,
+        400
       );
     }
 
@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
     if (department && department.length > 100) {
       return jsonResponse(
         { error: "Department must be 100 characters or fewer." },
-        400,
+        400
       );
     }
 
@@ -147,7 +147,7 @@ Deno.serve(async (req: Request) => {
     if (body.role !== undefined && body.role !== "employee") {
       return jsonResponse(
         { error: "Only the employee role can be assigned here." },
-        400,
+        400
       );
     }
 
@@ -171,23 +171,28 @@ Deno.serve(async (req: Request) => {
 
       return jsonResponse(
         { error: "Unable to validate the email address." },
-        500,
+        500
       );
     }
 
     if (existingEmployee) {
       return jsonResponse(
         { error: "An employee with this email already exists." },
-        409,
+        409
       );
     }
 
     // 7. 직원 초대 이메일 발송 및 Supabase Auth 계정 생성
+    // 초대한 사이트 주소의 비밀번호 설정 페이지로 이동
+
+    const origin = req.headers.get("origin");
+
     const { data: inviteData, error: inviteError } =
       await adminClient.auth.admin.inviteUserByEmail(email, {
         data: {
           full_name: fullName,
         },
+        redirectTo: origin ? `${origin}/set-password` : undefined,
       });
 
     // 초대 이메일 발송 또는 계정 생성 실패 처리
@@ -196,7 +201,7 @@ Deno.serve(async (req: Request) => {
 
       return jsonResponse(
         { error: "Unable to invite this email address." },
-        400,
+        400
       );
     }
 
@@ -220,8 +225,9 @@ Deno.serve(async (req: Request) => {
       console.error("Employee profile creation failed:", insertError);
 
       // 프로필 생성에 실패하면 Supabase Auth에 생성된 계정 삭제
-      const { error: deleteError } =
-        await adminClient.auth.admin.deleteUser(newUserId);
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(
+        newUserId
+      );
 
       if (deleteError) {
         console.error("Auth user rollback failed:", deleteError);
@@ -229,7 +235,7 @@ Deno.serve(async (req: Request) => {
 
       return jsonResponse(
         { error: "Unable to create the employee profile." },
-        500,
+        500
       );
     }
 
@@ -239,7 +245,7 @@ Deno.serve(async (req: Request) => {
         message: "Employee invitation sent successfully.",
         employee,
       },
-      201,
+      201
     );
   } catch (error) {
     // 예상하지 못한 서버 오류 처리

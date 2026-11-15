@@ -1,6 +1,6 @@
 import NorthIcon from "@mui/icons-material/North";
 import { Box, IconButton, InputBase, Typography } from "@mui/material";
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 type ChatInputProps = {
   placeholder: string;
@@ -16,12 +16,17 @@ const ChatInput = ({
   onSend,
 }: ChatInputProps) => {
   const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const submit = () => {
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue("");
+    // 엔터 후에도 이어서 입력할 수 있게 포커스 유지
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
   };
 
   const handleSubmit = (event: FormEvent) => {
@@ -55,6 +60,7 @@ const ChatInput = ({
         }}
       >
         <InputBase
+          inputRef={inputRef}
           fullWidth
           value={value}
           disabled={disabled}

@@ -6,15 +6,52 @@ type ChatHeaderProps = {
   title: string;
   subtitle: string;
   onClose: () => void;
-  onEndConversation: () => void;
+  /** inquiry: 관리자 문의 / end: 대화종료 / list: 목록으로 */
+  headerAction?: "inquiry" | "end" | "list";
+  onHeaderAction?: () => void;
+  /** 목록으로 옆 추가 버튼 (예: 문의 종료) */
+  secondaryAction?: { label: string; onClick: () => void };
+  /** @deprecated headerAction="end" 사용 */
+  onEndConversation?: () => void;
 };
+
+const HEADER_ACTION_LABEL: Record<"inquiry" | "end" | "list", string> = {
+  inquiry: "관리자 문의",
+  end: "대화종료",
+  list: "목록으로",
+};
+
+const headerBtnSx = {
+  color: "primary.contrastText",
+  border: "1px solid rgba(255,255,255,0.55)",
+  borderRadius: 999,
+  px: 1.25,
+  py: 0.25,
+  minWidth: 0,
+  fontSize: 12,
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+  "&:hover": {
+    bgcolor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.8)",
+  },
+} as const;
 
 const ChatHeader = ({
   title,
   subtitle,
   onClose,
+  headerAction,
+  onHeaderAction,
+  secondaryAction,
   onEndConversation,
 }: ChatHeaderProps) => {
+  const action = headerAction ?? (onEndConversation ? "end" : undefined);
+  const handleAction = () => {
+    onHeaderAction?.();
+    if (action === "end") onEndConversation?.();
+  };
+
   return (
     <Box
       sx={{
@@ -57,27 +94,16 @@ const ChatHeader = ({
           {subtitle}
         </Typography>
       </Box>
-      <Button
-        size="small"
-        onClick={onEndConversation}
-        sx={{
-          color: "primary.contrastText",
-          border: "1px solid rgba(255,255,255,0.55)",
-          borderRadius: 999,
-          px: 1.25,
-          py: 0.25,
-          minWidth: 0,
-          fontSize: 12,
-          fontWeight: 600,
-          whiteSpace: "nowrap",
-          "&:hover": {
-            bgcolor: "rgba(255,255,255,0.12)",
-            borderColor: "rgba(255,255,255,0.8)",
-          },
-        }}
-      >
-        대화종료
-      </Button>
+      {action ? (
+        <Button size="small" onClick={handleAction} sx={headerBtnSx}>
+          {HEADER_ACTION_LABEL[action]}
+        </Button>
+      ) : null}
+      {secondaryAction ? (
+        <Button size="small" onClick={secondaryAction.onClick} sx={headerBtnSx}>
+          {secondaryAction.label}
+        </Button>
+      ) : null}
       <IconButton
         aria-label="챗봇 닫기"
         onClick={onClose}

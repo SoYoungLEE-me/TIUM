@@ -4,6 +4,7 @@ import type {
   Balance,
   LeaveInput,
   LeaveRequest,
+  SubmittedLeave,
 } from "../models/apis/leave";
 import { rpc, unwrap } from "./apiRequest";
 import { getMe } from "./me";
@@ -169,7 +170,7 @@ export const getLeaveRequest = async (
   };
 };
 
-/** apply_leave RPC — OpenAPI confirmation_token 흐름 대신 직접 신청 */
+/** apply_leave RPC — 직접 신청 */
 export const submitLeave = async (
   body: LeaveInput
 ): Promise<LeaveRequest> => {
@@ -178,6 +179,29 @@ export const submitLeave = async (
     p_start_date: body.start_date,
     p_end_date: body.end_date,
     p_reason: body.reason ?? null,
+  });
+
+  return {
+    ...data,
+    total_days: Number(data.total_days),
+  };
+};
+
+/** 챗봇 확인 카드 제출 */
+export const submitLeaveFromToken = async (body: {
+  confirmation_token: string;
+  submission_key: string;
+}): Promise<SubmittedLeave> => {
+  const data = await rpc<{
+    id: string;
+    status: "approved" | "pending";
+    approval_type: "auto" | null;
+    total_days: number;
+    decision_reason: string;
+    message: string;
+  }>("submit_leave_from_token", {
+    p_confirmation_token: body.confirmation_token,
+    p_submission_key: body.submission_key,
   });
 
   return {

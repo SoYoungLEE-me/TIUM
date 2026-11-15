@@ -17,17 +17,24 @@ import {
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import LockResetRoundedIcon from "@mui/icons-material/LockResetRounded";
 import tiumLogo from "../../assets/logo/tium-logo-dark-text.svg";
 import { useMe } from "../../hooks/apis/useMe";
 import { useAuthStore } from "../../stores/authStore";
 import { getAvatarInitial } from "../../utils/profile/avatar";
+import NotificationBell from "./NotificationBell";
 
 interface NavbarProps {
   showMenuButton: boolean;
   onMenuClick: () => void;
+  variant?: "employee" | "admin";
 }
 
-const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
+const Navbar = ({
+  showMenuButton,
+  onMenuClick,
+  variant = "employee",
+}: NavbarProps) => {
   const { data: me } = useMe();
   const signOut = useAuthStore((state) => state.signOut);
   const queryClient = useQueryClient();
@@ -46,6 +53,12 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
     queryClient.clear();
     navigate("/login", { replace: true });
   };
+
+  const handleChangePassword = () => {
+    handleClose();
+    navigate("/change-password");
+  };
+
   return (
     <AppBar
       position="sticky"
@@ -80,6 +93,8 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
         )}
 
         <Box sx={{ flex: 1 }} />
+
+        <NotificationBell variant={variant} />
 
         <IconButton
           onClick={handleOpen}
@@ -136,7 +151,12 @@ const Navbar = ({ showMenuButton, onMenuClick }: NavbarProps) => {
           )}
 
           <Divider />
-
+          <MenuItem onClick={handleChangePassword}>
+            <ListItemIcon>
+              <LockResetRoundedIcon fontSize="small" />
+            </ListItemIcon>
+            비밀번호 변경
+          </MenuItem>
           <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
             <ListItemIcon sx={{ color: "inherit" }}>
               <LogoutRoundedIcon fontSize="small" />
