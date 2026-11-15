@@ -11,4 +11,5 @@ export const SET_PASSWORD_ERROR = {
     "비밀번호를 설정하지 못했어요. 초대 메일의 링크로 다시 들어와 주세요.",
 };
 
-export const SET_PASSWORD_SUCCESS = "비밀번호가 설정됐어요. 환영해요!";
+export const SET_PASSWORD_SUCCESS =
+  "비밀번호를 설정했어요. 새 비밀번호로 로그인해 주세요.";

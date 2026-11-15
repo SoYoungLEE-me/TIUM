@@ -22,12 +22,14 @@ import {
   SET_PASSWORD_SUCCESS,
 } from "../../configs/auth/setPassword";
 import { useMe } from "../../hooks/apis/useMe";
+import { useAuthStore } from "../../stores/authStore";
 
 /** 초대받은 직원이 메일 링크로 들어와 첫 비밀번호를 정하는 화면 */
 const SetPasswordPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: me } = useMe();
+  const signOut = useAuthStore((state) => state.signOut);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,12 +55,12 @@ const SetPasswordPage = () => {
     setSubmitting(true);
     try {
       await updatePassword(password);
+      //로그아웃하고 새 비밀번호로 직접 로그인하도록 이동
+      const email = me?.email;
+      await signOut();
+      queryClient.clear();
       toast.success(SET_PASSWORD_SUCCESS);
-      // 역할에 맞는 첫 화면으로 이동
-      await queryClient.invalidateQueries({ queryKey: ["me"] });
-      navigate(me?.role === "hr_admin" ? "/admin" : "/dashboard", {
-        replace: true,
-      });
+      navigate("/login", { replace: true, state: { email } });
     } catch {
       setError(SET_PASSWORD_ERROR.failed);
     } finally {
@@ -151,7 +153,7 @@ const SetPasswordPage = () => {
               fullWidth
               disabled={submitting}
             >
-              {submitting ? "설정 중" : "비밀번호 설정하고 시작하기"}
+              {submitting ? "설정 중" : "비밀번호 설정하기"}
             </Button>
           </Stack>
         </Box>
