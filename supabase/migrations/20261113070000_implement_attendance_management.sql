@@ -167,7 +167,7 @@ $function$;
 -- 기존 인자가 없는 함수 삭제
 DROP FUNCTION IF EXISTS public.get_attendance_records();
 
-CREATE FUNCTION public.get_attendance_records(
+CREATE OR REPLACE FUNCTION public.get_attendance_records(
     p_start_date date,
     p_end_date date,
     p_employee_id uuid DEFAULT NULL
