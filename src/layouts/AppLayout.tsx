@@ -1,10 +1,14 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import LoadingSpinner from "../common/components/Loading/LoadingSpinner";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { Outlet } from "react-router";
 import Chatbot from "../common/chatbot/Chatbot";
 import Scroll from "../common/scroll/scroll";
 import { useAdminLeaves } from "../hooks/apis/useAdminLeaves";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { subscribeLeaveRequests } from "../apis/adminLeaves";
+import { countUnreadInquiries } from "../apis/inquiries";
+import { queryKeys } from "../hooks/apis/queryKeys";
 import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 
@@ -19,19 +23,46 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const pendingLeavesQuery = useAdminLeaves(
-    { status: "pending", page_size: 100 },
-    { enabled: variant === "admin" },
+    { status: "pending", page: 1, page_size: 1 },
+    { enabled: variant === "admin", refetchInterval: 15_000 },
   );
 
-  const adminMenuItems = useMemo(() => {
-    const pendingCount = pendingLeavesQuery.data?.data.length ?? 0;
+  useEffect(() => {
+    if (variant !== "admin") return;
+    return subscribeLeaveRequests(() => {
+      void queryClient.invalidateQueries({ queryKey: ["adminLeaves"] });
+    });
+  }, [variant, queryClient]);
 
-    return ADMIN_MENU.map((item) =>
-      item.path === "/admin" ? { ...item, badge: pendingCount } : item,
-    );
-  }, [pendingLeavesQuery.data]);
+  const inquiryUnreadQuery = useQuery({
+    queryKey: queryKeys.inquiryUnread(variant),
+    queryFn: () => countUnreadInquiries("hr_admin"),
+    enabled: variant === "admin",
+    refetchInterval: 30_000,
+  });
+
+  const adminMenuItems = useMemo(() => {
+    const pendingCount =
+      pendingLeavesQuery.data?.pagination.total ??
+      pendingLeavesQuery.data?.data.length ??
+      0;
+    const inquiryCount = inquiryUnreadQuery.data ?? 0;
+
+    return ADMIN_MENU.map((item) => {
+      if (item.path === "/admin") {
+        return { ...item, badge: pendingCount || undefined };
+      }
+      if (item.path === "/admin/inquiries") {
+        return { ...item, badge: inquiryCount || undefined };
+      }
+      return item;
+    });
+  }, [pendingLeavesQuery.data, inquiryUnreadQuery.data]);
+
+  const employeeMenuItems = EMPLOYEE_MENU;
 
   return (
     <Box
@@ -43,7 +74,7 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
       }}
     >
       <Sidebar
-        menuItems={variant === "admin" ? adminMenuItems : EMPLOYEE_MENU}
+        menuItems={variant === "admin" ? adminMenuItems : employeeMenuItems}
         variant={isDesktop ? "permanent" : "temporary"}
         open={mobileOpen}
         onClose={() => setMobileOpen(false)}
@@ -61,18 +92,18 @@ const AppLayout = ({ variant = "employee" }: AppLayoutProps) => {
         <Navbar
           showMenuButton={!isDesktop}
           onMenuClick={() => setMobileOpen(true)}
+          variant={variant}
         />
         <Scroll
           component="main"
           sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}
         >
-          {/* 페이지만 로딩 — 사이드바, 네비바, 챗봇은 그대로 유지 */}
           <Suspense fallback={<LoadingSpinner />}>
             <Outlet />
           </Suspense>
         </Scroll>
       </Box>
-      <Chatbot />
+      <Chatbot variant={variant} />
     </Box>
   );
 };

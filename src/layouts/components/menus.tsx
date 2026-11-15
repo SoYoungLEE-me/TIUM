@@ -5,6 +5,7 @@ import BeachAccessRoundedIcon from "@mui/icons-material/BeachAccessRounded";
 import FactCheckRoundedIcon from "@mui/icons-material/FactCheckRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
+import ForumRoundedIcon from "@mui/icons-material/ForumRounded";
 
 export interface MenuItem {
   label: string;
@@ -27,6 +28,7 @@ export const EMPLOYEE_MENU: MenuItem[] = [
 export const ADMIN_MENU: MenuItem[] = [
   { label: "신청 검토", path: "/admin", icon: <FactCheckRoundedIcon /> },
   { label: "직원 연차", path: "/admin/leaves", icon: <GroupsRoundedIcon /> },
+  { label: "문의함", path: "/admin/inquiries", icon: <ForumRoundedIcon /> },
   {
     label: "규정 · AI 설정",
     path: "/admin/settings",

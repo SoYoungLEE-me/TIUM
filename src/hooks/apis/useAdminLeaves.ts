@@ -17,12 +17,13 @@ export const useAdminLeaves = (
     page?: number;
     page_size?: number;
   },
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; refetchInterval?: number | false },
 ) =>
   useQuery({
     queryKey: queryKeys.adminLeaves(filters),
     queryFn: () => getAdminLeaves(filters),
     enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchInterval,
   });
 
 export const useAdminLeave = (requestId: string, enabled = true) =>
