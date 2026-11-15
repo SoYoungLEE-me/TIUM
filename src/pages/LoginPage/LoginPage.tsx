@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { signIn } from "../../apis/auth";
 import { getMe } from "../../apis/me";
 import tiumLogo from "../../assets/logo/tium-logo-dark-text.svg";
@@ -22,7 +22,12 @@ import { queryKeys } from "../../hooks/apis/queryKeys";
 const LoginPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState("");
+  const location = useLocation();
+  // 비밀번호 설정 후 넘어오면 이메일 미리 채우기 (직접 입력하기 전까지)
+  const presetEmail = (location.state as { email?: string } | null)?.email;
+  const [typedEmail, setTypedEmail] = useState<string | null>(null);
+  const email = typedEmail ?? presetEmail ?? "";
+
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -119,7 +124,7 @@ const LoginPage = () => {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setTypedEmail(e.target.value)}
               fullWidth
             />
             <TextField

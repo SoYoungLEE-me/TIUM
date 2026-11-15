@@ -1,5 +1,7 @@
+import { useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import PersonAddAlt1RoundedIcon from "@mui/icons-material/PersonAddAlt1Rounded";
 import {
   Box,
   Button,
@@ -29,6 +31,7 @@ import GrantLeaveDialog from "./components/GrantLeaveDialog";
 import LeavesInfoSection from "./components/LeavesInfoSection";
 import LeavesSkeleton from "./components/LeavesSkeleton";
 import LeavesSummaryCards from "./components/LeavesSummaryCards";
+import InviteEmployeeDialog from "./components/InviteEmployeeDialog";
 
 const YEAR_OPTIONS = [DEFAULT_LEAVE_YEAR, DEFAULT_LEAVE_YEAR - 1];
 
@@ -58,6 +61,8 @@ const AdminLeavesPage = () => {
     grantLeave,
   } = useAdminEmployeeLeaves();
 
+  const [inviteOpen, setInviteOpen] = useState(false);
+
   const handleDetail = (employeeId: string) => {
     const willOpen = detailTarget?.employee.id !== employeeId;
     openDetailDialog(employeeId);
@@ -76,13 +81,23 @@ const AdminLeavesPage = () => {
         title={ADMIN_LEAVES_TITLE}
         description={ADMIN_LEAVES_DESCRIPTION}
         action={
-          <Button
-            variant="contained"
-            startIcon={<AddRoundedIcon />}
-            onClick={() => openGrantDialog()}
-          >
-            연차 부여
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<PersonAddAlt1RoundedIcon />}
+              onClick={() => setInviteOpen(true)}
+            >
+              직원 초대
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddRoundedIcon />}
+              onClick={() => openGrantDialog()}
+            >
+              연차 부여
+            </Button>
+          </Stack>
         }
       />
 
@@ -172,6 +187,11 @@ const AdminLeavesPage = () => {
         error={error}
         onClose={closeGrantDialog}
         onSubmit={grantLeave}
+      />
+      <InviteEmployeeDialog
+        open={inviteOpen}
+        departments={departments}
+        onClose={() => setInviteOpen(false)}
       />
     </Box>
   );
